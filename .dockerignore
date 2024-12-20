@@ -1,0 +1,27 @@
+# Environment files
+.env
+.venv/
+venv/
+
+# Version control
+.git/
+.gitignore
+
+# Docker-related
+.docker/
+Dockerfile.backend
+Dockerfile.frontend
+.dockerignore
+
+# Python cache
+**/__pycache__/
+
+# Node modules and build artifacts
+node_modules/
+build/
+npm-debug.log
+
+# Miscellaneous
+*.md
+README.md
+LICENSE

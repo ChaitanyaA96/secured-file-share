@@ -16,7 +16,11 @@ from django.contrib.auth import authenticate
 import pyotp
 from rest_framework_simplejwt.tokens import OutstandingToken, BlacklistedToken
 from rest_framework.permissions import IsAuthenticated
-
+import uuid
+from django.core.cache import cache as temporary_cache
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_exempt
+from core.models import UserRole
 # Create your views here.
 
 class RegisterView(APIView):
@@ -24,6 +28,14 @@ class RegisterView(APIView):
     serializer_class = UserSerializer
 
     def post(self, request):
+
+        email = request.data.get('email')
+        if email and User.objects.filter(email=email).exists():
+            return Response(
+                {"error": "User with this email is already registered."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
         serializer = self.serializer_class(data=request.data)
         if serializer.is_valid():
             password = serializer.validated_data.pop('password')
@@ -53,8 +65,8 @@ class RegisterView(APIView):
                 [user.email],
                 fail_silently=True,
             )
-
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            print(serializer.data)
+            return Response({"data": "Registration successful! Please check your email for verification. You have 24 hours to verify your account."}, status=status.HTTP_201_CREATED)
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
@@ -71,6 +83,7 @@ class VerifyEmailView(APIView):
                 if not user.is_active:
                     user.is_active = True
                     user.email_verified = True
+                    user.role = UserRole.USER.value
                     user.save()
                     return Response(
                         {'message': 'Email verified successfully'},
@@ -92,55 +105,6 @@ class VerifyEmailView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-
-class LoginView(APIView):
-    permission_classes = [AllowAny]
-
-    def post(self, request):
-        username = request.data.get("username")
-        password = request.data.get("password")
-        otp = request.data.get("otp", None)
-
-        # Authenticate user
-        user = authenticate(username=username, password=password)
-        if not user:
-            return Response({"error": "Invalid username or password"}, status=status.HTTP_401_UNAUTHORIZED)
-
-        if not user.is_active:
-            return Response({"error": "Account is not active"}, status=status.HTTP_403_FORBIDDEN)
-
-        # Check MFA status
-        if not user.mfa_enabled:
-            # Generate MFA secret and return provisioning URI
-            secret = pyotp.random_base32()
-            user.mfa_secret = secret
-            user.mfa_enabled = True
-            user.save()
-
-            otp_url = pyotp.TOTP(secret).provisioning_uri(name=user.email, issuer_name="YourAppName")
-            return Response({
-                "message": "MFA setup required. Scan the QR code with an authenticator app.",
-                "otp_url": otp_url
-            }, status=status.HTTP_200_OK)
-
-        # If MFA is active, verify OTP
-        if user.mfa_enabled:
-            if not otp:
-                return Response({"error": "OTP is required for login"}, status=status.HTTP_400_BAD_REQUEST)
-
-            totp = pyotp.TOTP(user.mfa_secret)
-            if not totp.verify(otp):
-                return Response({"error": "Invalid OTP"}, status=status.HTTP_401_UNAUTHORIZED)
-
-        # Generate JWT tokens after successful OTP verification
-        refresh = RefreshToken.for_user(user)
-        return Response({
-            "refresh": str(refresh),
-            "access": str(refresh.access_token),
-            "message": "Login successful"
-        }, status=status.HTTP_200_OK)
-
-
 class LogoutView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -156,3 +120,223 @@ class LogoutView(APIView):
             return Response({"message": "Logged out successfully"}, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+# class LoginStepOneView(APIView):
+#     permission_classes = [AllowAny]
+
+#     def post(self, request):
+#         username = request.data.get("username")
+#         password = request.data.get("password")
+
+#         # Authenticate user
+#         user = authenticate(username=username, password=password)
+#         if not user:
+#             return Response({"error": "Invalid username or password"}, status=status.HTTP_401_UNAUTHORIZED)
+
+#         if not user.is_active:
+#             return Response({"error": "Account is not active"}, status=status.HTTP_403_FORBIDDEN)
+
+#         if not user.mfa_enabled or not user.mfa_secret:
+#             secret = pyotp.random_base32()
+#             user.mfa_secret = secret
+#             user.mfa_enabled = True
+#             user.save()
+
+#             otp_url = pyotp.TOTP(secret).provisioning_uri(name=user.email, issuer_name="YourAppName")
+#             return Response({
+#                 "message": "MFA setup required. Scan the QR code with an authenticator app.",
+#                 "otp_url": otp_url
+#             }, status=status.HTTP_200_OK)
+
+#         # Success: generate temporary sessiontoken
+#         session_token = str(uuid.uuid4())  # Unique token
+#         temporary_cache.set(session_token, {"username": username}, timeout=300)
+
+#         # Success: Prompt for OTP in the next step
+#         return Response({
+#             "message": "Username and password verified. Please provide OTP to continue.",
+#             "session_token": session_token
+#         }, status=status.HTTP_200_OK)
+
+
+
+# class LoginStepTwoView(APIView):
+#     permission_classes = [AllowAny]
+
+#     def post(self, request):
+#         session_token = request.data.get("session_token")
+#         otp = request.data.get("otp")
+
+#         if not session_token or not otp:
+#             return Response({"error": "Please login first using username and password"}, status=status.HTTP_400_BAD_REQUEST)
+
+#         # Retrieve user
+#         session_data = temporary_cache.get(session_token)
+#         if not session_data:
+#             return Response({"error": "Session expired or invalid. Please login again."}, status=status.HTTP_401_UNAUTHORIZED)
+
+#         email = session_data.get("username")
+#         try:
+#             user = User.objects.get(email=email)
+#         except User.DoesNotExist:
+#             return Response({"error": "Invalid session data. Please login again."}, status=status.HTTP_401_UNAUTHORIZED)
+        
+#         # Verify OTP dynamically
+#         totp = pyotp.TOTP(user.mfa_secret)  # TOTP instance using user's MFA secret
+#         if not totp.verify(otp):
+#             return Response({"error": "Invalid OTP"}, status=status.HTTP_401_UNAUTHORIZED)
+
+#         # OTP verified; generate JWT tokens
+#         refresh = RefreshToken.for_user(user)
+#         return Response({
+#             "refresh": str(refresh),
+#             "access": str(refresh.access_token),
+#             "message": "Login successful"
+#         }, status=status.HTTP_200_OK)
+
+class LoadUserDataView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        user_data = {
+            "email": user.email,
+            "first_name": user.first_name,
+            "last_name": user.last_name,
+        }
+        return Response(user_data, status=status.HTTP_200_OK)
+    
+
+class LoginStepOneView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        username = request.data.get("username")
+        password = request.data.get("password")
+
+        # Authenticate user
+        user = authenticate(username=username, password=password)
+        if not user:
+            return Response({"error": "Invalid username or password"}, status=status.HTTP_401_UNAUTHORIZED)
+
+        if not user.is_active:
+            return Response({"error": "Account is not active"}, status=status.HTTP_403_FORBIDDEN)
+
+        # Store user email in the session
+        request.session['email'] = user.email
+
+        if not user.mfa_enabled:
+            # Generate MFA secret for setup if not already enabled
+            if not user.mfa_secret:
+                secret = pyotp.random_base32()
+                user.mfa_secret = secret
+                user.save()
+            else:
+                secret = user.mfa_secret
+
+            otp_url = pyotp.TOTP(secret).provisioning_uri(name=user.email, issuer_name="YourAppName")
+            return Response({
+                "message": "MFA setup required. Scan the QR code with an authenticator app.",
+                "otp_url": otp_url
+            }, status=status.HTTP_200_OK)
+
+        # If MFA is already enabled, prompt for OTP verification
+        return Response({
+            "message": "Username and password verified. Please provide OTP to log in."
+        }, status=status.HTTP_200_OK)
+
+
+class EnableMFAView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        otp = request.data.get("otp")
+
+        # Check if session exists and retrieve email
+        email = request.session.get('email')
+        print(email)
+        if not email:
+            return Response({"error": "Session expired or invalid. Please login again."}, status=status.HTTP_401_UNAUTHORIZED)
+
+        try:
+            user = User.objects.get(email=email)
+            print(user)
+        except User.DoesNotExist:
+            return Response({"error": "Invalid session data. Please login again."}, status=status.HTTP_401_UNAUTHORIZED)
+
+        # If MFA is already enabled, block this endpoint
+        if user.mfa_enabled:
+            return Response({"error": "MFA is already enabled for this user."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Verify OTP using the user's MFA secret
+        totp = pyotp.TOTP(user.mfa_secret)
+        if not totp.verify(otp):
+            return Response({"error": "Invalid OTP"}, status=status.HTTP_401_UNAUTHORIZED)
+
+        # Enable MFA and save
+        user.mfa_enabled = True
+        user.save()
+
+        return Response({"message": "MFA successfully enabled."}, status=status.HTTP_200_OK)
+
+
+class LoginStepTwoView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        otp = request.data.get("otp")
+
+        # Ensure OTP is provided
+        if not otp:
+            return Response({"error": "Please provide OTP to continue."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Check if session exists and retrieve email
+        email = request.session.get('email')
+        if not email:
+            return Response({"error": "Session expired or invalid. Please login again."}, status=status.HTTP_401_UNAUTHORIZED)
+
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            return Response({"error": "Invalid session data. Please login again."}, status=status.HTTP_401_UNAUTHORIZED)
+
+        # If MFA is not enabled, reject the request
+        if not user.mfa_enabled:
+            return Response({"error": "MFA is not enabled. Please enable MFA first."}, status=status.HTTP_403_FORBIDDEN)
+
+        # Verify OTP using the user's MFA secret
+        totp = pyotp.TOTP(user.mfa_secret)
+        if not totp.verify(otp):
+            return Response({"error": "Invalid OTP"}, status=status.HTTP_401_UNAUTHORIZED)
+
+        # Generate JWT tokens upon successful login
+        refresh = RefreshToken.for_user(user)
+
+        # Clear session data after successful login
+        request.session.flush()
+
+        return Response({
+            "refresh": str(refresh),
+            "access": str(refresh.access_token),
+            "message": "Login successful"
+        }, status=status.HTTP_200_OK)
+
+
+
+class DebugSessionView(APIView):
+    permission_classes = []  # Allow any access
+
+    def get(self, request):
+        user_data = {
+            "user": str(request.user),
+            "is_authenticated": request.user.is_authenticated,
+            # Safely access user attributes if authenticated
+            "role": getattr(request.user, "role", "Anonymous"),
+        }
+        session_data = dict(request.session.items())
+        return Response({
+            "user_data": user_data,
+            "session_data": session_data,
+        })
+

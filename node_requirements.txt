@@ -1,0 +1,6 @@
+npm i react-router-dom
+npm install redux react-redux
+npm install @reduxjs/toolkit
+npm install antd --save
+npm install axios --save
+npm install @ant-design/icons --save
