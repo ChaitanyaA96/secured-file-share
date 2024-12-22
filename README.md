@@ -1,2 +1,1 @@
-# secure-file-share
-Upload, Download and Share Files
+# secured-file-share
