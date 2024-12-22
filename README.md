@@ -20,7 +20,7 @@ Ensure you have the following installed on your system:
 - Node.js (16.x or higher) and npm
 - OpenSSL (for generating SSL certificates)
 - Authenticator APP ( eg, Authy )
-- 
+- Gmail app ( For App Password )
 
 ---
 
@@ -92,6 +92,11 @@ Run the application using Docker Compose:
 docker-compose up --build
 ```
 
+Run tests:
+```
+docker-compose run --rm backend sh -c "python manage.py test"
+```
+
 #### b. Access the Application
 - Frontend: [https://127.0.0.1:5173/](https://127.0.0.1:5173/)
 - Backend: [https://127.0.0.1:8000/](https://127.0.0.1:8000/)
@@ -105,7 +110,10 @@ Configure the following environment variables in a `.env` file:
 
 ```env
 For Email functionality create gmail account and app password
-How to create app password -> https://www.youtube.com/watch?v=lSURGX0JHbA&t=5s
+[How to create app password](https://www.youtube.com/watch?v=lSURGX0JHbA&t=5s)
+
+File location -> backend/backend/
+
 EMAIL_HOST_USER=EMAIL_HOST_USER 
 EMAIL_HOST_PASSWORD=EMAIL_HOST_PASSWORD
 MASTER_KEY=MASTER_KEY
@@ -147,46 +155,49 @@ python manage.py test
 
 ### User Registration and Authentication
 1. **Register User**: Create a new account using the registration form.
-   - ![User Registration Screenshot](images/register-user.png)
+   - ![User Registration Screenshot](images/Register_User.png)
+   - ![Email Send Screenshot](images/Registration_MSG.png)
+   - ![Registration Verify Email](images/Registration_Verify_Email.png)
 
 2. **Activate Account (For localhost)**: Open the link received in the email in the same browser or machine.
-   - ![Email Activation Screenshot](images/email-activation.png)
+   - ![Email Activation Screenshot](images/Email_Verified.png)
 
 3. **Login**: Enter your username and password to log in.
-   - ![Login Screenshot](images/login.png)
+   - ![Login Screenshot](images/Login_Screen.png)
 
 4. **MFA Setup**:
    - On first login, you will receive an MFA QR code.
    - Scan the QR code using an app like Authy.
    - Enter the first OTP to activate MFA. Without this step, the user cannot log in.
-   - ![MFA Setup Screenshot](images/mfa-setup.png)
+   - ![MFA Setup Screenshot](images/Enable_MFA.png)
 
 5. **Login with OTP**:
    - Once the username and password are verified, enter the OTP to successfully log in.
-   - ![OTP Login Screenshot](images/otp-login.png)
+   - ![OTP Login Screenshot](images/OTP.png)
 
 ### File Management
 
-1. **Upload Files**:
+1. **Upload Files/Download Files**:
    - Upload files securely to the system.
-   - ![File Upload Screenshot](images/file-upload.png)
+   - ![File Upload Screenshot](images/Upload_File.png)
 
-2. **Download Files**:
-   - Download files with appropriate permissions.
-   - ![File Download Screenshot](images/file-download.png)
-
-3. **Share Files with Other Users**:
+2. **Share Files with Other Users**:
    - Share files securely with specific users.
-   - ![Share File Screenshot](images/share-file.png)
+   - ![Share File Screenshot](images/Share_File.png)
 
-4. **Share Files Publicly**:
+3. **Share Files Publicly**:
    - Share files via public links (email send option included).
    - An email will be sent containing the access link.
-   - ![Public Share Email Screenshot](images/public-share-email.png)
+   - ![Public Share Email Screenshot](images/Share_Public_Link.png)
+   - ![Public share link](images/Public_Share_Link.png)
 
-5. **View Files**:
+4. **View Files**:
    - View supported file types (e.g., PDFs, images) inline.
-   - ![File Preview Screenshot](images/file-preview.png)
+   - ![File Preview Screenshot](images/View_Inline.png)
+
+5. **View Files Shared With Me**
+   - View files others shared with me
+   - ![Files shared with me](images/Shared_With_Me.png)
 
 ### Security
 - Each file is encrypted at rest and decrypted when accessed.
