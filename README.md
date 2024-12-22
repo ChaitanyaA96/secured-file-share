@@ -20,6 +20,7 @@ Ensure you have the following installed on your system:
 - Node.js (16.x or higher) and npm
 - OpenSSL (for generating SSL certificates)
 - Authenticator APP ( eg, Authy )
+- 
 
 ---
 
@@ -103,8 +104,12 @@ docker-compose up --build
 Configure the following environment variables in a `.env` file:
 
 ```env
-DJANGO_SECRET_KEY=your-secret-key
-ALLOWED_HOSTS=localhost,127.0.0.1
+For Email functionality create gmail account and app password
+How to create app password -> https://www.youtube.com/watch?v=lSURGX0JHbA&t=5s
+EMAIL_HOST_USER=EMAIL_HOST_USER 
+EMAIL_HOST_PASSWORD=EMAIL_HOST_PASSWORD
+MASTER_KEY=MASTER_KEY
+SECRET_KEY =SECRET_KEY
 ```
 
 ### CSRF Trusted Origins
