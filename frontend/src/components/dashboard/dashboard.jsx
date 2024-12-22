@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Layout, Menu, Avatar, Spin } from 'antd';
 import { FileOutlined, UserOutlined } from '@ant-design/icons';
@@ -7,22 +7,28 @@ import SharedWithMe from './sharedWithMe';
 import FileShareModal from './fileshare';
 import { loadUser } from '../../actions/auth';
 import { loadMyFiles, loadSharedWithMe } from '../../actions/file';
-import { useNavigate } from 'react-router-dom';
+
 const { Sider, Header, Content } = Layout;
 
 function Dashboard() {
   const [collapsed, setCollapsed] = useState(false);
   const [activeMenu, setActiveMenu] = useState('my-files'); // Track active menu
-  const user = useSelector((state) => state.auth.user);
   const dispatch = useDispatch();
 
-  const { myFiles, sharedFiles, loading } = useSelector((state) => ({
-    myFiles: state.file.myFiles,
-    sharedFiles: state.file.sharedWithMe,
-    loading: state.file.loading, // Add loading state in your reducer if not already present
-  }));
+  // Use selector to get user data
+  const user = useSelector((state) => state.auth.user);
 
-  // Load user and files on mount
+  // Use selector for file state and memoize derived data
+  const fileState = useSelector((state) => state.file);
+  const { myFiles, sharedFiles, loading } = useMemo(() => {
+    return {
+      myFiles: fileState.myFiles || [],
+      sharedFiles: fileState.sharedWithMe || [],
+      loading: fileState.loading || false,
+    };
+  }, [fileState]);
+
+  // Load user and files on mount or when the active menu changes
   useEffect(() => {
     dispatch(loadUser());
     if (activeMenu === 'my-files') {
@@ -30,10 +36,11 @@ function Dashboard() {
     } else if (activeMenu === 'shared-with-me') {
       dispatch(loadSharedWithMe());
     }
-  }, [dispatch, activeMenu]); // Reload files when activeMenu changes
+  }, [dispatch, activeMenu]);
 
+  // Handle menu selection
   const handleMenuClick = ({ key }) => {
-    setActiveMenu(key); // Set the active menu
+    setActiveMenu(key); // Update active menu
   };
 
   return (
@@ -43,8 +50,8 @@ function Dashboard() {
           <Avatar size={64} icon={<UserOutlined />} />
           {!collapsed && (
             <div>
-              <p>{user.first_name} {user.last_name}</p>
-              <p>{user.email}</p>
+              <p>{user?.first_name || 'User'} {user?.last_name || ''}</p>
+              <p>{user?.email || 'user@example.com'}</p>
             </div>
           )}
         </div>

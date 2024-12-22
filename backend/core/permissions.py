@@ -18,3 +18,9 @@ class IsGuest(BasePermission):
         if not request.user.is_authenticated or not request.user:
             return False
         return request.user.role == UserRole.GUEST.value    
+    
+class IsSuperuser(BasePermission):
+    def has_permission(self, request, view):
+        if not request.user.is_authenticated or not request.user:
+            return False
+        return request.user.is_superuser

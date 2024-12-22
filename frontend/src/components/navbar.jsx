@@ -25,6 +25,11 @@ const NavBar = () => {
     setSelectedKey(currentPath);
   }, [location]);
 
+  const adminLink = {
+    key: 'admin',
+    label: <Link to="/admin">Admin</Link>
+  };
+
   // Define menu items dynamically based on authentication state
   const items = isAuthenticated
     ? [
@@ -36,6 +41,7 @@ const NavBar = () => {
           key: 'dashboard',
           label: <Link to="/dashboard">Dashboard</Link>,
         },
+        user?.role === 'admin' && adminLink,
         {
           key: 'logout',
           label: <Logout />, // Logout button

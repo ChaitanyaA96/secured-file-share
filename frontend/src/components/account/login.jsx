@@ -19,7 +19,7 @@ const Login = () => {
     const { username, password } = values;
     try {
       const response = await dispatch(login(username, password));
-
+      console.log(response)
       if (response.mfaSetupRequired) {
         setOtpUrl(response.otpUrl);
         setCurrentStep(3); // Move to MFA setup

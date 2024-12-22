@@ -11,6 +11,7 @@ from django.conf import settings
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.backends import default_backend
 
+
 class UserRole(enum.Enum):
     ADMIN = "admin"
     USER = "user"
@@ -22,7 +23,7 @@ class UserManager(BaseUserManager):
             raise ValueError("Users must have an email address")
         
         email = self.normalize_email(email)
-        extra_fields.setdefault("role", UserRole.GUEST.value)
+        extra_fields.setdefault("role", UserRole.USER.value)
         extra_fields.setdefault("mfa_enabled", False)
         extra_fields.setdefault("email_verified", False)
         extra_fields.setdefault("is_active", False)
@@ -84,7 +85,7 @@ class File(models.Model):
         iv = os.urandom(12)
 
         # Store the encryption key for later decryption
-        self.encrypted_key = key
+        self.encrypted_key = encrypt_key(key)
 
         # Perform AES encryption
         cipher = Cipher(algorithms.AES(key), modes.GCM(iv), backend=default_backend())
@@ -106,7 +107,7 @@ class File(models.Model):
 
     def decrypt_file(self):
         # Retrieve the encryption key
-        key = self.encrypted_key
+        key = decrypt_key(self.encrypted_key)
         if not key:
             raise ValueError("Encryption key is missing")
 
@@ -152,3 +153,27 @@ class FileShare(models.Model):
 
     def __str__(self):
         return f"{self.file.name} shared with {self.shared_with or 'Link'}"
+
+
+def encrypt_key(key: bytes) -> bytes:
+    """
+    Encrypts the given key using AES-GCM with a master key.
+    Returns the encrypted key with IV and tag appended.
+    """
+    iv = os.urandom(12)  # Generate a random 96-bit IV
+    cipher = Cipher(algorithms.AES(settings.MASTER_KEY), modes.GCM(iv), backend=default_backend())
+    encryptor = cipher.encryptor()
+    encrypted_key = iv + encryptor.update(key) + encryptor.finalize() + encryptor.tag
+    return encrypted_key
+
+def decrypt_key(encrypted_key: bytes) -> bytes:
+    """
+    Decrypts the given key using AES-GCM with a master key.
+    Extracts IV and tag from the encrypted key.
+    """
+    iv = encrypted_key[:12]
+    tag = encrypted_key[-16:]
+    key_data = encrypted_key[12:-16]
+    cipher = Cipher(algorithms.AES(settings.MASTER_KEY), modes.GCM(iv, tag), backend=default_backend())
+    decryptor = cipher.decryptor()
+    return decryptor.update(key_data) + decryptor.finalize()

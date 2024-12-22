@@ -2,7 +2,7 @@ from django.shortcuts import render
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from django.http import Http404
+from django.http import FileResponse, Http404
 from core.models import File
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.parsers import MultiPartParser
@@ -12,11 +12,12 @@ from .serializers import FileSerializer
 from django.utils import timezone
 import datetime
 from django.shortcuts import get_object_or_404
-from django.core.mail import send_mail
 from django.conf import settings
 import string
 import secrets
 from mimetypes import guess_type
+from core.utils import send_email 
+
 
 
 
@@ -55,6 +56,37 @@ class FileDownloadView(APIView):
         except File.DoesNotExist:
             raise Http404("File not found or access denied.")
 
+class FileViewView(APIView):
+    """
+    View a file inline without allowing download.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, file_id, *args, **kwargs):
+        try:
+            print(f"Attempting to view file with ID: {file_id} for user: {request.user}")
+            file = get_object_or_404(File, id=file_id, owner=request.user)
+            file_path = file.file.path
+
+            # Decrypt the file content
+            decrypted_content = file.decrypt_file()
+            mime_type, _ = guess_type(file_path)
+            content_type = mime_type or 'application/octet-stream'
+
+            # Stream the file content inline
+            response = FileResponse(
+                iter([decrypted_content]),
+                content_type=content_type,
+            )
+            response['Content-Disposition'] = f'inline; filename="{file.name}"'
+            return response
+
+        except File.DoesNotExist:
+            raise Http404("File not found or access denied.")
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
 class UserFilesView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -71,10 +103,12 @@ def generate_passphrase(length=8):
     return ''.join(secrets.choice(characters) for _ in range(length))
 
 
-def generate_shared_link(uri, link):
+def generate_shared_link(uri, link, public=False):
     """
     Generate a fully qualified shared link.
     """
+    if public:
+        return f"{uri.rstrip('/')}/api/files/shared/public/{link}/"
     return f"{uri.rstrip('/')}/api/files/shared/{link}/"
 
 
@@ -98,6 +132,11 @@ class ShareFileView(APIView):
         expires_at = timezone.now() + datetime.timedelta(hours=int(expires_in)) if expires_in else None
         passphrase = generate_passphrase() if public else None
 
+        if share_type not in ["view", "download"]:
+            return Response(
+                {"error": "Invalid share_type. Use 'view' or 'download'."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         if isinstance(public, str):
             public = public.lower() == "true"
         if isinstance(one_time, str):
@@ -114,25 +153,21 @@ class ShareFileView(APIView):
             passphrase=passphrase
         )
         
-        shared_link = generate_shared_link(request.build_absolute_uri('/'), share.shared_link)
-
+        shared_link = generate_shared_link(request.build_absolute_uri('/'), share.shared_link, public=False)
         
         # Send email notification
-        email_subject = "File Shared with You"
-        email_message = f"A file has been shared with you by {request.user.email}.\n\n"
-        email_message += f"File Name: {file_obj.name}\n"
-        email_message += f"Access Link: {shared_link}\n"
-        if passphrase:
-            email_message += f"Passphrase: {passphrase}\n"
+        email_subject = f"{request.user.first_name} {request.user.last_name} Shared a file with you"
+        email_message = f"Shared file details:\n\n"
+        email_message += f"File Name: {file_obj.name}\n\n"
+        email_message += f"You can {share_type} the file through website \n\n"
         email_message += f"Expires At: {expires_at if expires_at else 'No expiration'}\n"
 
+
         recipient_email = shared_with if shared_with else request.user.email
-        send_mail(
-            email_subject,
-            email_message,
-            from_email=None,  # Uses DEFAULT_FROM_EMAIL from settings
-            recipient_list=[recipient_email],
-            fail_silently=True,
+        send_email(
+            to=[recipient_email],
+            subject=email_subject,
+            message=email_message
         )
 
         return Response({
@@ -145,42 +180,181 @@ class ShareFileView(APIView):
         }, status=status.HTTP_201_CREATED)
 
 
-class AccessSharedFileView(APIView):
-    """
-    Access shared file using a secure link.
-    Supports public access, one-time links, and specific user validation.
-    """
-    permission_classes = [AllowAny]
+class PublicShareFileView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        file_id = request.data.get("file_id")
+        share_type = request.data.get("share_type")
+        expires_in = request.data.get("expires_in")
+
+        file_obj = get_object_or_404(File, id=file_id, owner=request.user)
+        expires_at = timezone.now() + datetime.timedelta(hours=int(expires_in)) if expires_in else None 
+
+        if share_type not in ["view", "download"]:
+            return Response(
+                {"error": "Invalid share_type. Use 'view' or 'download'."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        
+        existing_share = FileShare.objects.filter(
+            file=file_obj,
+            shared_by=request.user,
+            public=True,
+        ).first()
+
+        if existing_share and existing_share.expires_at > timezone.now():
+            return Response({
+                "shared_link": generate_shared_link(request.build_absolute_uri('/'), existing_share.shared_link, public=True),
+                "expires_at": existing_share.expires_at,
+                "passphrase": existing_share.passphrase
+            }, status=status.HTTP_201_CREATED)
+        
+        passphrase = generate_passphrase()
+
+        share = FileShare.objects.create(
+            file=file_obj,
+            shared_by=request.user,
+            shared_with=None,
+            share_type=share_type,
+            expires_at=expires_at,
+            public=True,
+            used=False,
+            passphrase=passphrase
+        )
+
+        shared_link = generate_shared_link(request.build_absolute_uri('/'), share.shared_link, public=True)
+
+        return Response({
+            "shared_link": shared_link,
+            "expires_at": expires_at,
+            "passphrase": passphrase
+        }, status=status.HTTP_201_CREATED)
+
+
+class GetPublicShareDetails(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        file_id = request.query_params.get("file_id")
+        user = request.user
+        print("file_id" , file_id)
+        shareDetails = get_object_or_404(FileShare, file = file_id, public = True, shared_by=user)
+        print(shareDetails)
+        if shareDetails.expires_at and shareDetails.expires_at < timezone.now():
+            return Response({"error": "This link has expired. Please generate a new link."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        if shareDetails.public:
+            return Response({
+                "shared_link": generate_shared_link(request.build_absolute_uri('/'), shareDetails.shared_link, public=True),
+                "expires_at": shareDetails.expires_at,
+                "passphrase": shareDetails.passphrase
+            }, status=status.HTTP_200_OK)
+        else:
+            return Response({"error": "This link is not public."}, status=status.HTTP_400_BAD_REQUEST)
+
+class AccessSharedFileForAuthenticatedUsers(APIView):
+    permission_classes = [IsAuthenticated]
 
     def get(self, request, shared_link):
-        print(f"Attempting to access shared file with link: {shared_link}")
+        print(f"Attempting authenticated access for shared file with link: {shared_link}")
         share = get_object_or_404(FileShare, shared_link=shared_link)
 
-        # Check if link is expired
+        # Check if the link is expired
         if share.is_expired():
             return Response({"error": "This link has expired."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Check if link has already been used (for one-time access)
-        if share.used:
-            return Response({"error": "This link has already been used."}, status=status.HTTP_400_BAD_REQUEST)
+        # Validate that the link is not public and is shared with the current user
+        if share.public:
+            return Response({"error": "This link is public. Use the public API."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Check passphrase for public links
-        passphrase = request.GET.get("passphrase")
+        if not share.shared_with or request.user.email != share.shared_with:
+            return Response({"error": "Access denied."}, status=status.HTTP_403_FORBIDDEN)
+
+        # Handle share_type
+        if share.share_type == "view":
+            # Stream file content for viewing in the frontend
+            file_path = share.file.file.path
+            print("file_path", file_path)
+            decrypted_content = share.file.decrypt_file()
+            mime_type, _ = guess_type(file_path)
+            print("mime_type", mime_type)
+            content_type = mime_type or "application/octet-stream"
+
+            response = FileResponse(
+                iter([decrypted_content]),
+                content_type=content_type,
+            )
+            response["Content-Disposition"] = f'inline; filename="{share.file.name}"'  # Ensure "inline" for viewing
+            return response
+
+        elif share.share_type == "download":
+            # Allow file download
+            file_path = share.file.file.path
+            decrypted_content = share.file.decrypt_file()
+            mime_type, _ = guess_type(file_path)
+            content_type = mime_type or "application/octet-stream"
+
+            response = FileResponse(
+                iter([decrypted_content]),
+                content_type=content_type,
+            )
+            response["Content-Disposition"] = f'attachment; filename="{share.file.name}"'  # Allow "attachment" for download
+            return response
+
+        return Response({"error": "Invalid share type."}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class AccessSharedFileForPublicUsers(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request, shared_link, passphrase):
+        print(f"Attempting public access for shared file with link: {shared_link}")
+        share = get_object_or_404(FileShare, shared_link=shared_link)
+
+        # Check if the link is expired
+        if share.is_expired():
+            return Response({"error": "This link has expired."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Validate that the link is public
+        if not share.public:
+            return Response({"error": "This link is restricted to authenticated users."}, status=status.HTTP_400_BAD_REQUEST)
+
         if share.passphrase and share.passphrase != passphrase:
             return Response({"error": "Invalid passphrase."}, status=status.HTTP_403_FORBIDDEN)
 
-        # Check restricted access for specific user
-        if not share.public and share.shared_with and (not request.user.is_authenticated or request.user.email != share.shared_with):
-            return Response({"error": "Access denied."}, status=status.HTTP_403_FORBIDDEN)
+        # Handle share_type
+        if share.share_type == "view":
+            # Stream file content for viewing in the frontend
+            file_path = share.file.file.path
+            decrypted_content = share.file.decrypt_file()
+            mime_type, _ = guess_type(file_path)
+            content_type = mime_type or "application/octet-stream"
 
-        # Mark one-time link as used
-        if not share.used:
-            share.used = True
-            share.save()
-        
-        serializer = FileSerializer(share.file)
-        return Response(serializer.data)
+            response = FileResponse(
+                iter([decrypted_content]),
+                content_type=content_type,
+            )
+            response["Content-Disposition"] = f'inline; filename="{share.file.name}"'  # Ensure "inline" for viewing
+            return response
 
+        elif share.share_type == "download":
+            # Allow file download
+            file_path = share.file.file.path
+            print("file_path", file_path)
+            decrypted_content = share.file.decrypt_file()
+            mime_type, _ = guess_type(file_path)
+            print("mime_type", mime_type)
+            content_type = mime_type or "application/octet-stream"
+
+            response = FileResponse(
+                iter([decrypted_content]),
+                content_type=content_type,
+            )
+            response["Content-Disposition"] = f'attachment; filename="{share.file.name}"'  # Allow "attachment" for download
+            return response
+
+        return Response({"error": "Invalid share type."}, status=status.HTTP_400_BAD_REQUEST)
 
 class SharedFilesListView(APIView):
     """
@@ -202,6 +376,40 @@ class SharedFilesListView(APIView):
                     "shared_at": share.created_at,
                     "expires_at": share.expires_at,
                     "share_type": share.share_type,
-                    "shared_link": generate_shared_link(request.build_absolute_uri('/'), share.shared_link)
+                    "shared_link": share.shared_link
                 })
         return Response(response_data)
+
+
+class SendEmailView(APIView):
+    """
+    A view to send an email using the utility function.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+        # Extract email data from the request
+        to = request.data.get("to")
+        subject = request.data.get("subject")
+        message = request.data.get("message")
+        from_email = request.user.email
+
+        # Validate inputs
+        if not to or not subject or not message:
+            return Response(
+                {"error": "Missing required fields: 'to', 'subject', or 'message'."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not isinstance(to, list):
+            return Response(
+                {"error": "'to' field must be a list of recipient email addresses."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Use the utility function to send the email
+        try:
+            send_email(to=to, subject=subject, message=message, from_email=from_email)
+            return Response({"success": "Email sent successfully."}, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

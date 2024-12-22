@@ -1,3 +1,4 @@
+
 """
 Django settings for backend project.
 
@@ -180,3 +181,10 @@ SESSION_COOKIE_SECURE = not DEBUG  # Enable for HTTPS in production
 SESSION_ENGINE = 'django.contrib.sessions.backends.db'  # Default session engine
 SESSION_COOKIE_AGE = 300
 COOKIE_EXPIRE_AT_BROWSER_CLOSE = True
+
+
+STATIC_URL = '/static/static/'
+MEDIA_URL = '/static/media/'
+
+STATIC_ROOT = '/vol/web/static'
+MEDIA_ROOT = '/vol/web/media'

@@ -36,6 +36,8 @@ export const loadUser = () => async (dispatch, getState) => {
 
 // LOGIN USER
 export const login = (username, password) => async (dispatch) => {
+
+  console.log(username, password)
   const body = JSON.stringify({ username, password });
 
   try {

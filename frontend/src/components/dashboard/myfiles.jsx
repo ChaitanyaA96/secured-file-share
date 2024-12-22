@@ -15,7 +15,7 @@ const MyFiles = () => {
   const [description, setDescription] = useState('');
   const [fileList, setFileList] = useState([]); // Manage file list for the Upload component
   const [shareModalVisible, setShareModalVisible] = useState(false);
-
+  const [shareType, setShareType] = useState(''); // Track share type
   // Handle file selection
   const handleFileChange = ({ file, fileList }) => {
     if (file) {
@@ -52,9 +52,10 @@ const MyFiles = () => {
       });
   };
 
-  const handleShare = (file) => {
+  const handleShare = (file, type) => {
     setSelectedFile(file); // Store file to share
     setShareModalVisible(true); // Show Share Modal
+    setShareType(type); // Set share type
   };
 
   // Handle file download
@@ -81,8 +82,11 @@ const MyFiles = () => {
         >
           Download
         </Button>
-         <Button type="link" icon={<ShareAltOutlined />} onClick={() => handleShare(file)}>
+         <Button type="link" icon={<ShareAltOutlined />} onClick={() => handleShare(file, 'share')}>
          Share
+        </Button>
+        <Button type="link" icon={<ShareAltOutlined />} onClick={() => handleShare(file, 'public')}>
+         Public Share
         </Button>
         </>
       ),
@@ -134,10 +138,11 @@ const MyFiles = () => {
           style={{ marginTop: '10px' }}
         />
       </Modal>
+
       <FileShareModal
         modal={{
           isVisible: shareModalVisible,
-          modalType: 'share',
+          modalType: shareType,
         }}
         dispatch={dispatch}
         file={selectedFile} // Pass the selected file to the modal

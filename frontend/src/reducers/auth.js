@@ -27,39 +27,31 @@ const initialState = {
     // token stored in local storage
     access: localStorage.getItem('access') || null,
     refresh: localStorage.getItem('refresh') || null,
-    isAuthenticated: false,
+    isAuthenticated: !!localStorage.getItem('access') || false,
     isMfaRequired: false,
-    session_id: null,
     user: null
 }
 
 export default function(state=initialState, action){
     switch(action.type){
         case USER_LOADED:
+            console.log("USER_LOADED", action.payload);
             return {
                 ...state,
                 isAuthenticated: true,
                 isLoading:false,
                 user: action.payload
             }
-        // case USER_UPDATE_SUCCESS:
-        //     return {
-        //         ...state,
-        //         ...action.payload,
-        //         isAuthenticated:true,
-        //         isLoading:false,
-        //     }
         case LOGIN_SUCCESS:
             return {
                 ...state,
                 isAuthenticated: false,
                 isMfaRequired: true,
-                session_id: action.session_id, // Set session_id
             };
 
         case VERIFY_MFA_SUCCESS:
-            //localStorage.setItem('access', action.payload.access);
-            //localStorage.setItem('refresh', action.payload.refresh);
+            localStorage.setItem('access', action.payload.access);
+            localStorage.setItem('refresh', action.payload.refresh);
             return {
                 ...state,
                 access: action.payload.access,
@@ -92,20 +84,17 @@ export default function(state=initialState, action){
                 isAuthenticated:false,
                 isLoading:false,
                 isMfaRequired: false,
-                session_id: null,
                 errorMessage: action.payload,
             }
         case LOGOUT_SUCCESS:
-            //localStorage.removeItem('access');
-            //localStorage.removeItem('refresh');
-            //localStorage.removeItem('session_id');
+            localStorage.removeItem('access');
+            localStorage.removeItem('refresh');
             return {
                 ...state,
                 access: null,
                 refresh: null,
                 isAuthenticated: false,
                 isMfaRequired: false,
-                session_id: null,
                 user: null,
                 errorMessage: null
             }

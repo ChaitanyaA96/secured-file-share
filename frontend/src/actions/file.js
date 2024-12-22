@@ -31,12 +31,14 @@ export const loadSharedWithMe = () => async (dispatch, getState) => {
 // Upload a File
 export const uploadFile = (fileData) => async (dispatch, getState) => {
   try {
+    const fileConfig = fileTokenConfig(getState);
+    fileConfig.headers['Content-Type'] = 'multipart/form-data'; 
     const formData = new FormData();
     formData.append('file', fileData.get('file'));
     formData.append('description', fileData.get('description'));
     formData.append('name', fileData.get('name'));
 
-    const res = await api.post('files/upload/', fileData, fileTokenConfig(getState));
+    const res = await api.post('files/upload/', formData, fileConfig);
     dispatch({ type: UPLOAD_FILE, payload: res.data });
   } catch (err) {
     console.error('Error uploading file:', err);
@@ -71,7 +73,7 @@ export const downloadFile = (fileId, fileName) => async (dispatch, getState) => 
 
 
 // Share a File
-export const shareFile = (shareDetails) => async (dispatch, getState) => {
+export const shareFileAuthenticated = (shareDetails) => async (dispatch, getState) => {
   try {
     console.log("shareDetails", shareDetails);
     const res = await api.post('files/share/', shareDetails, fileTokenConfig(getState));
@@ -81,14 +83,84 @@ export const shareFile = (shareDetails) => async (dispatch, getState) => {
   }
 };
 
+// Create a Public Share
+export const shareFilePublic = (shareDetails) => async (dispatch, getState) => {
+  // Expected shareDetails: { file_id: string, expires_in: string }
+  try {
+    const res = await api.post('files/share/public/', shareDetails, fileTokenConfig(getState));
+    console.log('Public share created:', res.data);
+    return res.data;
+  } catch (err) {
+    console.error('Error creating public share:', err);
+  }
+};
+
+// Get Public Share Details
+export const getPublicShareDetails = (shareDetails) => async (dispatch, getState) => {
+  try {
+    console.log(shareDetails)
+    const url = `files/shared/public/details/?file_id=${shareDetails.file_id}`;
+    const res = await api.get(url, fileTokenConfig(getState));
+    return res.data;
+  } catch (err) {
+    console.error('Error getting public share details:', err);
+  }
+};
+
+// Send an Email
+export const sendEmail = (emailData) => async (dispatch, getState) => {
+  // Expected emailData: { to: string, subject: string, message: string }
+  try {
+    console.log("emailData", emailData);
+    const res = await api.post('files/send-email/', emailData, fileTokenConfig(getState));
+    console.log('Email sent successfully:', res.data);
+    return res.data;
+  } catch (err) {
+    console.error('Error sending email:', err);
+  }
+};
+
+// Access Shared File (Authenticated User)
+export const accessSharedFileAuthenticated = (sharedLink) => async (dispatch, getState) => {
+  try {
+    console.log("sharedLink", sharedLink);
+    const fileConfig = fileTokenConfig(getState);
+    fileConfig['responseType'] = 'blob';
+    console.log("fileConfig", fileConfig);
+    const res = await api.get(`files/shared/${sharedLink}/`, fileConfig);
+    console.log("res", res);
+    return res;
+  } catch (err) {
+    console.error('Error accessing shared file for authenticated user:', err);
+  }
+};
+
+
+// Access Shared File (Public User)
+export const accessSharedFilePublic = (sharedLink, passphrase = null) => async () => {
+  try {
+    const config = {
+      headers: {
+        'Accept': 'application/json',
+      },
+      params: {
+        passphrase: passphrase,
+      },
+    };
+    const res = await api.get(`files/shared/public/${sharedLink}/`, config);
+    return res.data;
+  } catch (err) {
+    console.error('Error accessing shared file for public user:', err);
+  }
+};
+
 
 // Helper function to set up config with token
 const fileTokenConfig = (getState) => {
   const token = getState().auth.access;
   const config = {
     headers: {
-      'Accept': 'application/json',
-      'Content-Type': 'multipart/form-data',
+      'Content-Type': 'application/json',
     },
   };
 
@@ -98,70 +170,3 @@ const fileTokenConfig = (getState) => {
 
   return config;
 };
-
-
-//import axios from 'axios';
-
-// import {
-//   SET_MY_FILES,
-//   SET_SHARED_WITH_ME,
-//   UPLOAD_FILE,
-//   SHARE_FILE,
-// } from './types'
-
-
-// // Load My Files
-// export const loadMyFiles = () => async (dispatch, getState) => {
-//   try {
-//     const res = await axios.get('http://localhost:8000/api/files/my-files/', fileTokenConfig(getState));
-//     dispatch({
-//       type: SET_MY_FILES,
-//       payload: res.data,
-//     });
-//   } catch (err) {
-//     console.error('Error loading my files:', err);
-//     throw err; // Propagate the error for further handling if needed
-//   }
-// };
-
-// // Load Files Shared With Me
-// export const loadSharedWithMe = () => async (dispatch, getState) => {
-//   try {
-//     const res = await axios.get('http://localhost:8000/api/files/shared-with-me/', fileTokenConfig(getState));
-//     dispatch({
-//       type: SET_SHARED_WITH_ME,
-//       payload: res.data,
-//     });
-//   } catch (err) {
-//     console.error('Error loading shared files:', err);
-//     throw err;
-//   }
-// };
-
-// // Upload a File
-// export const uploadFile = (fileData) => async (dispatch, getState) => {
-//   try {
-//     const res = await axios.post('http://localhost:8000/api/files/upload/', fileData, fileTokenConfig(getState));
-//     dispatch({
-//       type: UPLOAD_FILE,
-//       payload: res.data,
-//     });
-//   } catch (err) {
-//     console.error('Error uploading file:', err);
-//     throw err;
-//   }
-// };
-
-// // Share a File
-// export const shareFile = (shareDetails) => async (dispatch, getState) => {
-//   try {
-//     const res = await axios.post('http://localhost:8000/api/files/share/', shareDetails, fileTokenConfig(getState));
-//     dispatch({
-//       type: SHARE_FILE,
-//       payload: res.data,
-//     });
-//   } catch (err) {
-//     console.error('Error sharing file:', err);
-//     throw err;
-//   }
-// };
