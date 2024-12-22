@@ -1,8 +1,8 @@
 // src/pages/Home.js
-import React from 'react';
-import { Typography, Divider } from 'antd';
+import React from 'react'
+import { Typography, Divider } from 'antd'
 
-const { Title, Paragraph } = Typography;
+const { Title, Paragraph } = Typography
 
 const Home = () => {
   return (
@@ -10,17 +10,19 @@ const Home = () => {
       <div>
         <Title>Welcome to My File Sharing App</Title>
         <Paragraph>
-          Securely share your files with ease. Upload your files and generate secure links now!
+          Securely share your files with ease. Upload your files and generate
+          secure links now!
         </Paragraph>
-      </div> 
+      </div>
 
       <div>
         <Paragraph>
-          Need help? Visit our <a href="/about">About</a> page or <a href="/upload">Upload</a> a file now.
+          Need help? Visit our <a href="/about">About</a> page or{' '}
+          <a href="/upload">Upload</a> a file now.
         </Paragraph>
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default Home;
+export default Home

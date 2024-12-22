@@ -6,55 +6,64 @@ import {
   Checkbox,
   message,
   Button,
-} from 'antd';
-import { useState, useEffect } from 'react';
-import { useDispatch } from 'react-redux';
+} from 'antd'
+import { useState, useEffect } from 'react'
+import { useDispatch } from 'react-redux'
 import {
   shareFileAuthenticated,
   shareFilePublic,
   sendEmail,
   getPublicShareDetails,
-} from '../../actions/file';
-import moment from 'moment';
+} from '../../actions/file'
+import moment from 'moment'
 
-function FileShareModal({ modal = { isVisible: false, modalType: '' }, file, dispatch, onClose }) {
-  const [form] = Form.useForm();
-  const [publicShareForm] = Form.useForm();
-  const reduxDispatch = useDispatch();
-  const [shareDetails, setShareDetails] = useState(null);
-  const [recipientEmail, setRecipientEmail] = useState('');
-  const [loading, setLoading] = useState(false);
+function FileShareModal({
+  modal = { isVisible: false, modalType: '' },
+  file,
+  dispatch,
+  onClose,
+}) {
+  const [form] = Form.useForm()
+  const [publicShareForm] = Form.useForm()
+  const reduxDispatch = useDispatch()
+  const [shareDetails, setShareDetails] = useState(null)
+  const [recipientEmail, setRecipientEmail] = useState('')
+  const [loading, setLoading] = useState(false)
 
   // Check for existing public share details when modal opens
   useEffect(() => {
     if (modal.isVisible && modal.modalType === 'public' && file) {
-      fetchPublicShareDetails();
+      fetchPublicShareDetails()
     }
-  }, [modal.isVisible, modal.modalType, file]);
+  }, [modal.isVisible, modal.modalType, file])
 
   const fetchPublicShareDetails = async () => {
     try {
-      setLoading(true);
-      const existingDetails = await reduxDispatch(getPublicShareDetails({ file_id: file.id }));
+      setLoading(true)
+      const existingDetails = await reduxDispatch(
+        getPublicShareDetails({ file_id: file.id }),
+      )
       if (existingDetails) {
-        setShareDetails(existingDetails);
+        setShareDetails(existingDetails)
       } else {
-        setShareDetails(null); // Ensure no stale data
+        setShareDetails(null) // Ensure no stale data
       }
     } catch (error) {
-      console.error('Error fetching public share details:', error);
+      //TODO
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   const handleOk = async () => {
     try {
-      const values = await form.validateFields();
-      const expiresInHours = moment(values.expiryDate).local().diff(moment().local(), 'hours');
+      const values = await form.validateFields()
+      const expiresInHours = moment(values.expiryDate)
+        .local()
+        .diff(moment().local(), 'hours')
 
       if (expiresInHours <= 0) {
-        throw new Error('Expiry date must be in the future.');
+        throw new Error('Expiry date must be in the future.')
       }
 
       const shareDetails = {
@@ -64,24 +73,28 @@ function FileShareModal({ modal = { isVisible: false, modalType: '' }, file, dis
         expires_in: expiresInHours,
         public: false,
         one_time: values.one_time || false,
-      };
+      }
 
-      await reduxDispatch(shareFileAuthenticated(shareDetails));
-      message.success(`File "${file.name}" shared successfully!`);
-      onClose();
+      await reduxDispatch(shareFileAuthenticated(shareDetails))
+      message.success(`File "${file.name}" shared successfully!`)
+      onClose()
     } catch (error) {
-      console.error('Validation or share error:', error);
-      message.error(error.message || 'Failed to share the file. Please try again.');
+      //TODO
+      message.error(
+        error.message || 'Failed to share the file. Please try again.',
+      )
     }
-  };
+  }
 
   const handlePublicShare = async () => {
     try {
-      const values = await publicShareForm.validateFields();
-      const expiresInHours = moment(values.expiryDate).local().diff(moment().local(), 'hours');
+      const values = await publicShareForm.validateFields()
+      const expiresInHours = moment(values.expiryDate)
+        .local()
+        .diff(moment().local(), 'hours')
 
       if (expiresInHours <= 0) {
-        throw new Error('Expiry date must be in the future.');
+        throw new Error('Expiry date must be in the future.')
       }
 
       const shareDetails = {
@@ -89,21 +102,21 @@ function FileShareModal({ modal = { isVisible: false, modalType: '' }, file, dis
         expires_in: expiresInHours,
         passphrase: values.passphrase,
         share_type: 'download',
-      };
+      }
 
-      const res = await reduxDispatch(shareFilePublic(shareDetails));
-      setShareDetails(res); // Store share details
-      message.success('Public share link created successfully!');
+      const res = await reduxDispatch(shareFilePublic(shareDetails))
+      setShareDetails(res) // Store share details
+      message.success('Public share link created successfully!')
     } catch (error) {
-      console.error('Error creating public share:', error);
-      message.error('Failed to create public share. Please try again.');
+      //TODO
+      message.error('Failed to create public share. Please try again.')
     }
-  };
+  }
 
   const handleSendEmail = async () => {
     if (!recipientEmail) {
-      message.error('Please enter a recipient email!');
-      return;
+      message.error('Please enter a recipient email!')
+      return
     }
 
     try {
@@ -111,44 +124,57 @@ function FileShareModal({ modal = { isVisible: false, modalType: '' }, file, dis
         to: [recipientEmail],
         subject: 'Public Share Link',
         message: `Here are the public share details:\nLink: ${shareDetails?.shared_link}\nPassphrase: ${shareDetails?.passphrase}\nExpires at: ${shareDetails?.expires_at}`,
-      };
+      }
 
-      await reduxDispatch(sendEmail(emailData));
-      message.success('Email sent successfully!');
+      await reduxDispatch(sendEmail(emailData))
+      message.success('Email sent successfully!')
     } catch (error) {
-      console.error('Error sending email:', error);
-      message.error('Failed to send email. Please try again.');
+      //TODO
+      message.error('Failed to send email. Please try again.')
     }
-  };
+  }
 
   const handleCancel = () => {
-    form.resetFields();
-    publicShareForm.resetFields();
-    setShareDetails(null); // Reset share details
-    setRecipientEmail(''); // Reset recipient email
-    onClose();
-  };
+    form.resetFields()
+    publicShareForm.resetFields()
+    setShareDetails(null) // Reset share details
+    setRecipientEmail('') // Reset recipient email
+    onClose()
+  }
 
   return (
     <Modal
-      title={modal.modalType === 'share' ? `Share File: ${file?.name || ''}` : `Create Public Share: ${file?.name || ''}`}
+      title={
+        modal.modalType === 'share'
+          ? `Share File: ${file?.name || ''}`
+          : `Create Public Share: ${file?.name || ''}`
+      }
       open={modal.isVisible}
       onCancel={handleCancel}
       footer={null} // Custom footer for better control
     >
       {modal.modalType === 'share' ? (
-        <Form form={form} layout="vertical" initialValues={{ public: false, one_time: false }} onFinish={handleOk}>
+        <Form
+          form={form}
+          layout="vertical"
+          initialValues={{ public: false, one_time: false }}
+          onFinish={handleOk}
+        >
           <Form.Item
             label="Email/Name"
             name="email"
-            rules={[{ required: true, message: 'Please enter an email or name!' }]}
+            rules={[
+              { required: true, message: 'Please enter an email or name!' },
+            ]}
           >
             <AutoComplete placeholder="Enter email or name" />
           </Form.Item>
           <Form.Item
             label="Expiry Date"
             name="expiryDate"
-            rules={[{ required: true, message: 'Please select an expiry date!' }]}
+            rules={[
+              { required: true, message: 'Please select an expiry date!' },
+            ]}
           >
             <Input type="datetime-local" />
           </Form.Item>
@@ -183,16 +209,26 @@ function FileShareModal({ modal = { isVisible: false, modalType: '' }, file, dis
                 value={recipientEmail}
                 onChange={(e) => setRecipientEmail(e.target.value)}
               />
-              <Button type="primary" onClick={handleSendEmail} style={{ marginTop: '10px' }}>
+              <Button
+                type="primary"
+                onClick={handleSendEmail}
+                style={{ marginTop: '10px' }}
+              >
                 Send via Email
               </Button>
             </div>
           ) : (
-            <Form form={publicShareForm} layout="vertical" onFinish={handlePublicShare}>
+            <Form
+              form={publicShareForm}
+              layout="vertical"
+              onFinish={handlePublicShare}
+            >
               <Form.Item
                 label="Expiry Date"
                 name="expiryDate"
-                rules={[{ required: true, message: 'Please select an expiry date!' }]}
+                rules={[
+                  { required: true, message: 'Please select an expiry date!' },
+                ]}
               >
                 <Input type="datetime-local" />
               </Form.Item>
@@ -204,7 +240,7 @@ function FileShareModal({ modal = { isVisible: false, modalType: '' }, file, dis
         </>
       )}
     </Modal>
-  );
+  )
 }
 
-export default FileShareModal;
+export default FileShareModal

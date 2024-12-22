@@ -1,40 +1,40 @@
-import React, { useState } from 'react';
-import { Modal, Upload, Button, Input, message } from 'antd';
-import { UploadOutlined } from '@ant-design/icons';
-import { useDispatch } from 'react-redux';
-import { uploadFile } from '../../actions/file';
+import React, { useState } from 'react'
+import { Modal, Upload, Button, Input, message } from 'antd'
+import { UploadOutlined } from '@ant-design/icons'
+import { useDispatch } from 'react-redux'
+import { uploadFile } from '../../actions/file'
 
 const UploadFileModal = ({ visible, onClose }) => {
-  const [selectedFile, setSelectedFile] = useState(null);
-  const [description, setDescription] = useState('');
-  const dispatch = useDispatch();
+  const [selectedFile, setSelectedFile] = useState(null)
+  const [description, setDescription] = useState('')
+  const dispatch = useDispatch()
 
   const handleFileChange = ({ file }) => {
-    setSelectedFile(file);
-  };
+    setSelectedFile(file)
+  }
 
   const handleUpload = () => {
     if (!selectedFile) {
-      message.error('Please select a file to upload!');
-      return;
+      message.error('Please select a file to upload!')
+      return
     }
 
-    const formData = new FormData();
-    formData.append('file', selectedFile);
-    formData.append('description', description || '');
+    const formData = new FormData()
+    formData.append('file', selectedFile)
+    formData.append('description', description || '')
 
     dispatch(uploadFile(formData))
       .then(() => {
-        message.success('File uploaded successfully!');
-        onClose();
+        message.success('File uploaded successfully!')
+        onClose()
       })
       .catch(() => {
-        message.error('Failed to upload file!');
-      });
+        message.error('Failed to upload file!')
+      })
 
-    setSelectedFile(null);
-    setDescription('');
-  };
+    setSelectedFile(null)
+    setDescription('')
+  }
 
   return (
     <Modal
@@ -58,7 +58,7 @@ const UploadFileModal = ({ visible, onClose }) => {
         style={{ marginTop: '10px' }}
       />
     </Modal>
-  );
-};
+  )
+}
 
-export default UploadFileModal;
+export default UploadFileModal

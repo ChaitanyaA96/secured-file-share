@@ -1,6 +1,8 @@
-from django.core.mail import send_mail
-from django.conf import settings
 from typing import List
+
+from django.conf import settings
+from django.core.mail import send_mail
+
 
 def send_email(to: List[str], subject: str, message: str, from_email: str = None):
     """

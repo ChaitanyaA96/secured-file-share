@@ -1,33 +1,11 @@
-// import React from 'react';
-// import { Typography } from 'antd';
+import React from 'react'
+import { Layout, Menu } from 'antd'
+import { UserOutlined, FileOutlined } from '@ant-design/icons'
+import { Routes, Route, Link } from 'react-router-dom'
+import User from './user'
+import File from './file'
 
-// const { Title, Paragraph } = Typography;
-
-// const AdminPage = () => {
-//   return (
-//     <div>
-//       <Title level={2}>Admin Dashboard</Title>
-//       <Paragraph>
-//         This area provides administration functionalities such as managing users, setting roles, and more.
-//       </Paragraph>
-//     </div>
-//   );
-// };
-
-// export default AdminPage;
-
-
-import React from 'react';
-import { Layout, Menu } from 'antd';
-import {
-  UserOutlined,
-  FileOutlined,
-} from '@ant-design/icons';
-import { Routes, Route, Link } from 'react-router-dom';
-import User from './user';
-import File from './file';
-
-const { Header, Content, Sider } = Layout;
+const { Header, Content, Sider } = Layout
 
 const AdminPage = () => {
   return (
@@ -70,7 +48,7 @@ const AdminPage = () => {
         </Layout>
       </Layout>
     </Layout>
-  );
-};
+  )
+}
 
-export default AdminPage;
+export default AdminPage

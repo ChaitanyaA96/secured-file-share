@@ -1,4 +1,3 @@
-
 """
 Django settings for backend project.
 
@@ -11,9 +10,11 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
-from pathlib import Path
-from datetime import timedelta
 import os
+import socket
+from datetime import timedelta
+from pathlib import Path
+
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -50,6 +51,7 @@ INSTALLED_APPS = [
     "rest_framework_simplejwt.token_blacklist",
     "corsheaders",
     "django_extensions",
+    "sslserver",
 ]
 
 MIDDLEWARE = [
@@ -129,7 +131,6 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
-STATIC_URL = "static/"
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
@@ -137,7 +138,10 @@ STATIC_URL = "static/"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 REST_FRAMEWORK = {
-    "DEFAULT_AUTHENTICATION_CLASSES": ["rest_framework_simplejwt.authentication.JWTAuthentication", "rest_framework.authentication.SessionAuthentication"],
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+        "rest_framework.authentication.SessionAuthentication",
+    ],
     "DEFAULT_PERMISSION_CLASSES": ["core.permissions.IsUser"],
 }
 
@@ -151,40 +155,48 @@ SIMPLE_JWT = {
 }
 
 # Email settings
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+EMAIL_HOST = "smtp.gmail.com"
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_USE_SSL = False
-EMAIL_HOST_USER=os.getenv('EMAIL_HOST_USER')
-EMAIL_HOST_PASSWORD=os.getenv('EMAIL_HOST_PASSWORD')
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")
 
-print(EMAIL_HOST_USER, EMAIL_HOST_PASSWORD)
-
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
-MEDIA_URL = '/media/'
-
-MASTER_KEY = bytes.fromhex(os.getenv('MASTER_KEY', ''))
-print(MASTER_KEY)
+MASTER_KEY = bytes.fromhex(os.getenv("MASTER_KEY", ""))
 if not MASTER_KEY or len(MASTER_KEY) != 32:
     raise ValueError("Invalid or missing MASTER_KEY. Ensure it's a 256-bit key.")
 
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",  # Your frontend URL
+    "http://localhost:5173",
     "http://127.0.0.1:5173",
+    "https://localhost:5173",
+    "https://127.0.0.1:5173",
 ]
+
+CSRF_TRUSTED_ORIGINS = ["https://*.127.0.0.1"]
+
+try:
+    # Fetch the local machine's IP address
+    hostname = socket.gethostname()
+    local_ip = socket.gethostbyname(hostname)
+    CORS_ALLOWED_ORIGINS.append(f"http://{local_ip}:5173")
+    CORS_ALLOWED_ORIGINS.append(f"https://{local_ip}:5173")
+    CSRF_TRUSTED_ORIGINS.append(f"https://{local_ip}:5173")
+except socket.error:
+    pass
 
 CORS_ALLOW_CREDENTIALS = True
 
 # settings.py
 SESSION_COOKIE_SECURE = not DEBUG  # Enable for HTTPS in production
-SESSION_ENGINE = 'django.contrib.sessions.backends.db'  # Default session engine
+SESSION_ENGINE = "django.contrib.sessions.backends.db"  # Default session engine
 SESSION_COOKIE_AGE = 300
 COOKIE_EXPIRE_AT_BROWSER_CLOSE = True
 
 
-STATIC_URL = '/static/static/'
-MEDIA_URL = '/static/media/'
+STATIC_URL = "/static/static/"
+MEDIA_URL = "/static/media/"
 
-STATIC_ROOT = '/vol/web/static'
-MEDIA_ROOT = '/vol/web/media'
+STATIC_ROOT = "/vol/web/static"
+MEDIA_ROOT = "/vol/web/media"

@@ -9,7 +9,7 @@ services:
     volumes:
       - /Users/Workspace/Abnormal Security/secure-file-share/backend:/backend
     command: >
-      sh -c "python manage.py runserver 0.0.0.0:8000"
+      sh -c "python manage.py runserver_plus 0.0.0.0:8000 --verbosity 3 --cert-file ./certificates/devserver.crt --key-file ./certificates/fileshare.key"
 
   frontend:
     build:
