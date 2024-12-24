@@ -1,0 +1,18 @@
+FROM nginx:latest
+
+# Copy Nginx configuration
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+# Copy SSL certificates
+COPY certificates/ /etc/nginx/certificates/
+
+# Copy the built frontend files from the frontend container
+COPY --from=secure-file-share-frontend /app/dist /usr/share/nginx/html
+
+# Create empty directories for static and media files
+RUN mkdir -p /usr/share/nginx/static /usr/share/nginx/media
+
+EXPOSE 80
+EXPOSE 443
+
+CMD ["nginx", "-g", "daemon off;"]

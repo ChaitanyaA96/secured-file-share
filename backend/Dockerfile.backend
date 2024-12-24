@@ -1,0 +1,33 @@
+FROM python:3.10-slim
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    curl procps iproute2 \
+    python3-dev gcc && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# Set work directory
+WORKDIR /app
+
+# Install Python dependencies
+COPY requirements.txt /app/
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy application code
+COPY . /app/
+
+# Environment variables
+ENV PYTHONDONTWRITEBYTECODE 1
+ENV PYTHONUNBUFFERED 1
+
+# Collect static files
+RUN python manage.py collectstatic --noinput
+
+# Expose the backend port
+EXPOSE 8000
+
+# Command to run Gunicorn directly
+CMD ["gunicorn", "backend.wsgi:application", "--bind", "0.0.0.0:8000", "--certfile=/app/deploy/certificates/localhost.crt", "--keyfile=/app/deploy/certificates/localhost.key", "--log-level", "debug"]
+
+# CMD ["gunicorn", "backend.wsgi:application", "--bind", "0.0.0.0:8000", "--log-level", "debug"]

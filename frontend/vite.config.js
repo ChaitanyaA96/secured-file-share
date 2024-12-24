@@ -7,14 +7,15 @@ export default defineConfig({
   plugins: [react()],
   server: {
     https: {
-      key: fs.readFileSync('./certificates/fileshare.key'),
-      cert: fs.readFileSync('./certificates/devserver.crt'),
+      key: fs.readFileSync('./certificates/localhost.key'),
+      cert: fs.readFileSync('./certificates/localhost.crt'),
     },
     proxy: {
       '/api': {
-        target: 'https://127.0.0.1:8000',
+        target: 'https://backend:8000',
         changeOrigin: true,
-        secure: false, // Ignore self-signed certificate errors
+        // rewrite: (path) => path.replace(/^\/api/, ''),
+        secure: false,
       },
     },
   },

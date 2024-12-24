@@ -1,26 +1,36 @@
-
 services:
   backend:
     build:
-      context: .
+      context: ./backend
       dockerfile: Dockerfile.backend
-    ports:
-      - 8000:8000
+    image: secure-file-share-backend
     volumes:
-      - /Users/Workspace/Abnormal Security/secure-file-share/backend:/backend
-    command: >
-      sh -c "python manage.py runserver_plus 0.0.0.0:8000 --verbosity 3 --cert-file ./certificates/devserver.crt --key-file ./certificates/fileshare.key"
+      - ./backend/static:/app/static
+      - ./backend/media:/app/media
+    environment:
+      - DJANGO_SETTINGS_MODULE=backend.settings
+    env_file:
+      - ./backend/.env
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile.frontend
-    ports:
-      - 5173:5173
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
+    image: secure-file-share-frontend  # Name the image explicitly
+    environment:
+      - VITE_API_URL=https://localhost/api
+
+  nginx:
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile.nginx
     depends_on:
+      - frontend
       - backend
-    command: >
-      sh -c "npm run dev"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./backend/static:/usr/share/nginx/static
+      - ./backend/media:/usr/share/nginx/media
+      - ./certificates:/etc/nginx/certificates

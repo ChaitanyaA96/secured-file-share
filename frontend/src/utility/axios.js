@@ -9,7 +9,7 @@ import { tokenConfig } from '../actions/auth' // Assuming tokenConfig is defined
 
 // Create Axios instance
 const api = axios.create({
-  baseURL: 'https://127.0.0.1:8000/api/',
+  baseURL: '/api/',
   headers: {
     'Content-Type': 'application/json',
   },
@@ -19,6 +19,7 @@ const api = axios.create({
 // Request Interceptor
 api.interceptors.request.use(
   (config) => {
+    console.log('Request Sent:', config);
     const state = store.getState()
     const token = state.auth?.access
     if (token) {
