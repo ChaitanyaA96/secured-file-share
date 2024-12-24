@@ -118,6 +118,14 @@ EMAIL_HOST_USER=EMAIL_HOST_USER
 EMAIL_HOST_PASSWORD=EMAIL_HOST_PASSWORD
 MASTER_KEY=MASTER_KEY
 SECRET_KEY =SECRET_KEY
+DEBUG=False
+ALLOWED_HOSTS=localhost
+
+
+File location -> frontend/
+
+VITE_API_URL=https://localhost/api
+
 ```
 
 ### CSRF Trusted Origins
