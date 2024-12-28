@@ -33,7 +33,7 @@ git clone <repository-url>
 cd secured-file-share
 ```
 
-### 2. Backend Setup
+### 2. Backend Setup - For Development
 
 #### a. Create a Virtual Environment (Optional)
 ```bash
@@ -62,7 +62,7 @@ python manage.py createsuperuser
 #### e. Run the Development Server
 Start the backend server:
 ```bash
-python manage.py runserver_plus --cert-file certificates/devserver.crt --key-file certificates/devserver.key
+python manage.py runserver
 ```
 
 ### 3. Frontend Setup
@@ -89,24 +89,33 @@ npm start
 #### a. Build and Start Containers
 Run the application using Docker Compose:
 ```bash
-docker-compose up --build
+
 ```
 
 Run tests:
 ```
-docker-compose run --rm backend sh -c "python manage.py test"
+
 ```
 
 #### b. Access the Application
 - Frontend: [https://127.0.0.1:5173/](https://127.0.0.1:5173/)
 - Backend: [https://127.0.0.1:8000/](https://127.0.0.1:8000/)
 
+
+#### Prod server
+Run the application using Docker Compose:
+```bash
+    docker-compose build --no-cache --build-arg ENVIRONMENT=prod  && docker-compose up
+```
+
+#### Access the Application
+- [https://localhost/](https://localhost/)
 ---
 
 ## Configuration
 
 ### Environment Variables
-Configure the following environment variables in a `.env` file:
+Configure the following environment variables in a `.env.dev` and `.env.prod` file:
 
 ```env
 For Email functionality create gmail account and app password
