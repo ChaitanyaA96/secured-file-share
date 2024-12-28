@@ -1,5 +1,5 @@
 # Use Node.js official image
-FROM node:20
+FROM node:20-slim
 
 # Set working directory inside the container
 WORKDIR /app
@@ -7,14 +7,27 @@ WORKDIR /app
 # Copy only package.json and package-lock.json first to leverage Docker caching
 COPY package.json package-lock.json /app/
 
+RUN apt-get update && apt-get install -y curl
+
 # Install dependencies
 RUN npm install
 
 # Copy the rest of the application code
 COPY . /app/
 
-# Build the frontend package
-RUN npm run build
+# RUN rm -rf /app/src /app/tests /app/.git /app/node_modules/.cache
 
+# Set default environment variables
+ARG ENVIRONMENT
+
+RUN if [ "$ENVIRONMENT" = "prod" ]; then \
+        npm run build; \
+    fi
 # Start the application (optional; only for development)
-CMD ["npm", "run", "start"]
+# CMD ["npm", "run", "start"]
+
+CMD if [ "$ENVIRONMENT" = "prod" ]; then \
+        npx serve -s dist; \
+    else \
+        npm run dev; \
+    fi

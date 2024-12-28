@@ -3,27 +3,43 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile.backend
+      args:
+        - ENVIRONMENT
     image: secure-file-share-backend
+    container_name: backend
     volumes:
+      - ./backend:/app
       - ./backend/static:/app/static
       - ./backend/media:/app/media
     environment:
-      - DJANGO_SETTINGS_MODULE=backend.settings
+      - ENVIRONMENT=${ENVIRONMENT:-dev}
+      - DJANGO_SETTINGS_MODULE=backend.django_settings.${ENVIRONMENT:-dev}
+      - DJANGO_ENV=${ENVIRONMENT:-dev}
     env_file:
-      - ./backend/.env
+      - path: ./backend/.env.${ENVIRONMENT:-dev}
+        required: true
+    expose:
+      - "8000"
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile.frontend
-    image: secure-file-share-frontend  # Name the image explicitly
+      args:
+        - ENVIRONMENT
+    image: secure-file-share-frontend
+    container_name: frontend
     environment:
+      - ENVIRONMENT=${ENVIRONMENT:-dev}
       - VITE_API_URL=https://localhost/api
 
   nginx:
     build:
       context: ./nginx
       dockerfile: Dockerfile.nginx
+      args:
+        - ENVIRONMENT
+    container_name: nginx
     depends_on:
       - frontend
       - backend
@@ -34,3 +50,9 @@ services:
       - ./backend/static:/usr/share/nginx/static
       - ./backend/media:/usr/share/nginx/media
       - ./certificates:/etc/nginx/certificates
+    environment:
+      - ENVIRONMENT=${ENVIRONMENT:-dev}
+
+networks:
+  default:
+    name: secure-file-share

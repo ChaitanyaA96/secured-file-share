@@ -11,8 +11,10 @@ const Login = () => {
   const [form] = Form.useForm()
   const [otpForm] = Form.useForm()
   const dispatch = useDispatch()
-  const [currentStep, setCurrentStep] = useState(1) // Step 1: Login, Step 2: MFA, Step 3: MFA Setup
+  const [currentStep, setCurrentStep] = useState(1)
   const [otpUrl, setOtpUrl] = useState('')
+  const [mfaEnableMsg, setMfaEnableMsg] = useState('')
+  const [showMfaEnableMsg, setShowMfaEnableMsg] = useState(false)
   const isAuthenticated = useSelector((state) => state.auth.isAuthenticated)
 
   const onLogin = async (values) => {
@@ -21,11 +23,12 @@ const Login = () => {
       const response = await dispatch(login(username, password))
       if (response.mfaSetupRequired) {
         setOtpUrl(response.otpUrl)
-        setCurrentStep(3) // Move to MFA setup
+        setCurrentStep(3)
       } else if (response.mfaRequired) {
-        setCurrentStep(2) // Move to MFA verification
+        setCurrentStep(2)
       } else {
-        message.success('Login successful!')
+        setCurrentStep(1);
+       // message.success('Login successful!')
       }
     } catch (error) {
       message.error('Login failed. Please check your credentials.')
@@ -35,8 +38,10 @@ const Login = () => {
   const onMfaSubmit = async (values) => {
     const { otp } = values
     try {
-      await dispatch(verifyMFA(otp))
-      message.success('Login successful!')
+      const result = await dispatch(verifyMFA(otp))
+      if(result?.success){
+        message.success('Login successful!')
+      }
     } catch (error) {
       message.error('Invalid OTP. Please try again.')
     }
@@ -45,17 +50,31 @@ const Login = () => {
   const onMfaSetup = async (values) => {
     const { otp } = values
     try {
-      await dispatch(enableMFA(otp))
-      message.success('MFA enabled successfully! Please log in again.')
-      setCurrentStep(1) // Return to login
+      const result = await dispatch(enableMFA(otp))
+      if(result?.success){
+        setMfaEnableMsg('MFA enabled successfully! Please log in again. Redirecting to Login in 5 sec.')
+        setShowMfaEnableMsg(true)
+        //message.success('MFA enabled successfully! Please log in again.')
+      }
+      else {
+        setMfaEnableMsg('Failed to enable MFA. Please try again. Redirecting to Login in 5 sec.')
+        setShowMfaEnableMsg(true)
+      }
     } catch (error) {
       message.error('Failed to enable MFA. Please try again.')
     }
+    setTimeout(() => {
+      setMfaEnableMsg('')
+      setShowMfaEnableMsg(false)
+      setCurrentStep(1);
+    }, 5000);
   }
 
-  useEffect(() => {
-    setCurrentStep(1)
-  }, [])
+  // useEffect(() => {
+  //   setCurrentStep(currentStep)
+  //   setMfaEnableMsg('')
+  //   setShowMfaEnableMsg(false)
+  // }, [showMfaEnableMsg])
 
   if (isAuthenticated) {
     return <Navigate to="/" />
@@ -125,9 +144,11 @@ const Login = () => {
               </Button>
             </Form.Item>
           </Form>
-        )}
+          )
+        }
 
-        {currentStep === 3 && (
+        {currentStep === 3 && 
+          !showMfaEnableMsg ? (
           <div>
             <p>Scan this QR code with your authenticator app:</p>
             <QRCodeReact value={otpUrl} size={256} />
@@ -151,6 +172,18 @@ const Login = () => {
               </Form.Item>
             </Form>
           </div>
+        ): (
+          <div
+          className="success-message"
+          style={{
+            margin: '20px 0',
+            color: 'green',
+            textAlign: 'center',
+            fontSize: '18px',
+          }}
+        >
+          {mfaEnableMsg}
+        </div>
         )}
       </Card>
     </div>

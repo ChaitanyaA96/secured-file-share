@@ -6,6 +6,7 @@ import {
 } from '../actions/types'
 import store from '../store'
 import { tokenConfig } from '../actions/auth' // Assuming tokenConfig is defined for access token setup
+import Cookies from 'js-cookie'
 
 // Create Axios instance
 const api = axios.create({
@@ -13,13 +14,16 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  withCredentials: true,
 })
+
+let csrftoken = Cookies.get('csrfcookiename');
+axios.defaults.withCredentials = true
+axios.defaults.credentials = 'same-origin';
+axios.defaults.headers.common['X-CSRFToken'] = csrftoken;
 
 // Request Interceptor
 api.interceptors.request.use(
   (config) => {
-    console.log('Request Sent:', config);
     const state = store.getState()
     const token = state.auth?.access
     if (token) {
@@ -54,7 +58,7 @@ api.interceptors.response.use(
 
         // Refresh token API call
         const res = await axios.post(
-          'http://localhost:8000/api/auth/refresh/',
+          'auth/refresh/',
           {
             refresh: refreshToken,
           },

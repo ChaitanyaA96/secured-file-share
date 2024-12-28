@@ -1,6 +1,10 @@
 FROM python:3.10-slim
-
 # Install system dependencies
+
+ARG ENVIRONMENT
+
+ENV DJANGO_SETTINGS_MODULE=backend.django_settings."$ENVIRONMENT"
+
 RUN apt-get update && apt-get install -y \
     curl procps iproute2 \
     python3-dev gcc && \
@@ -12,14 +16,27 @@ WORKDIR /app
 
 # Install Python dependencies
 COPY requirements.txt /app/
-RUN pip install --no-cache-dir -r requirements.txt
+COPY requirements.dev.txt /app/
+COPY backend.crt /etc/ssl/backend/backend.crt
+COPY backend.key /etc/ssl/backend/backend.key
+
+RUN chmod 600 /etc/ssl/backend/backend.key && \
+    chmod 644 /etc/ssl/backend/backend.crt
+
+# Install dependencies based on the environment and set DJANGO_SETTINGS_MODULE dynamically
+RUN if [ "$ENVIRONMENT" = "dev" ]; then \
+        pip install --no-cache-dir -r requirements.txt && \
+        pip install --no-cache-dir -r requirements.dev.txt; \
+    else \
+        pip install --no-cache-dir -r requirements.txt; \
+    fi
 
 # Copy application code
 COPY . /app/
 
 # Environment variables
-ENV PYTHONDONTWRITEBYTECODE 1
-ENV PYTHONUNBUFFERED 1
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
 
 # Collect static files
 RUN python manage.py collectstatic --noinput
@@ -28,6 +45,4 @@ RUN python manage.py collectstatic --noinput
 EXPOSE 8000
 
 # Command to run Gunicorn directly
-CMD ["gunicorn", "backend.wsgi:application", "--bind", "0.0.0.0:8000", "--certfile=/app/deploy/certificates/localhost.crt", "--keyfile=/app/deploy/certificates/localhost.key", "--log-level", "debug"]
-
-# CMD ["gunicorn", "backend.wsgi:application", "--bind", "0.0.0.0:8000", "--log-level", "debug"]
+CMD ["gunicorn", "backend.wsgi:application", "--bind", "0.0.0.0:8000", "--certfile=/etc/ssl/backend/backend.crt", "--keyfile=/etc/ssl/backend/backend.key"]

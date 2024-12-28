@@ -1,0 +1,1 @@
+from .base import EMAIL_HOST_USER, EMAIL_HOST_PASSWORD 

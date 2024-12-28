@@ -1,35 +1,27 @@
-"""
-Django settings for backend project.
-"""
-
+### base.py ###
 import os
 import socket
 from datetime import timedelta
 from pathlib import Path
-from dotenv import load_dotenv, dotenv_values
-from django.conf import settings
+from dotenv import load_dotenv
 
-# Load environment variables
-load_dotenv(".env.prod")
 
-BASE_DIR = Path(__file__).resolve().parent.parent
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
-print(BASE_DIR)
-config = {
-    'EMAIL_HOST_USER': os.getenv('EMAIL_HOST_USER'),
-    'EMAIL_HOST_PASSWORD': os.getenv('EMAIL_HOST_PASSWORD'),
-    'MASTER_KEY': os.getenv('MASTER_KEY'),
-    'DJANGO_SECRET_KEY': os.getenv('DJANGO_SECRET_KEY'),
-    'DEBUG': os.getenv('DEBUG'), 
-    'ALLOWED_HOSTS': os.getenv('ALLOWED_HOSTS').split(',') if os.getenv('ALLOWED_HOSTS') else [],
-    'ENVIRONMENT': os.getenv('ENVIRONMENT'),
-}
-[print(f"{key}: {value}") for key, value in config.items()] 
+# Determine the environment
+ENVIRONMENT = os.getenv("ENVIRONMENT", "dev")
+
+# Load the appropriate .env file
+if ENVIRONMENT == "dev":
+    load_dotenv(BASE_DIR / ".env.dev")
+elif ENVIRONMENT == "prod":
+    load_dotenv(BASE_DIR / ".env.prod")
+else:
+    raise ValueError("Unknown DJANGO_ENV value: choose 'dev' or 'prod'")
 
 # Security settings
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "default-secret-key")  # Use env variable in production
-DEBUG = os.getenv("DEBUG", "False") == "True"
-ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "localhost").split(",") + ["*"] 
+ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "localhost").split(",") + ["*"]
 
 # Applications
 INSTALLED_APPS = [
@@ -78,14 +70,6 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "backend.wsgi.application"
 
-# Database configuration
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
-    }
-}
-
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
@@ -133,25 +117,9 @@ EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")
 EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")
 
 # CORS settings
-CORS_ALLOWED_ORIGINS = [
-    # Development frontend URLs
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-    
-    # Production-like frontend URLs
-    "https://localhost:5173",
-    "https://127.0.0.1:5173",
-]
-
-CSRF_TRUSTED_ORIGINS = [
-    # Development URLs
-    "http://localhost",
-    "http://127.0.0.1",
-
-    # Production-like URLs
-    "https://localhost",
-    "https://127.0.0.1",
-]
+CORS_ALLOWED_ORIGINS = []
+CSRF_TRUSTED_ORIGINS = []
+CORS_ALLOW_CREDENTIALS = True
 
 # Add dynamic IPs for testing on local network
 try:
@@ -168,19 +136,43 @@ try:
 except socket.error:
     pass
 
-CORS_ALLOW_CREDENTIALS = True
+# Master key for encryption
+MASTER_KEY = bytes.fromhex(os.getenv("MASTER_KEY", ""))
+if not MASTER_KEY or len(MASTER_KEY) != 32:
+    raise ValueError("Invalid or missing MASTER_KEY. Ensure it's a 256-bit key.")
 
-# Session and cookies
-SESSION_COOKIE_SECURE = not DEBUG
-CSRF_COOKIE_SECURE = not DEBUG
-SECURE_SSL_REDIRECT = not DEBUG
-SECURE_HSTS_SECONDS = 31536000
-SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-SECURE_HSTS_PRELOAD = True
-
-# # Master key for encryption
-# MASTER_KEY = bytes.fromhex(os.getenv("MASTER_KEY", ""))
-# if not MASTER_KEY or len(MASTER_KEY) != 32:
-#     raise ValueError("Invalid or missing MASTER_KEY. Ensure it's a 256-bit key.")
-
-# ROOT_URLCONF = 'backend.urls'
+# Logging configuration
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {
+            "format": "{levelname} {asctime} {module} {message}",
+            "style": "{",
+        },
+        "simple": {
+            "format": "{levelname} {message}",
+            "style": "{",
+        },
+    },
+    "handlers": {
+        "console": {
+            "level": "DEBUG",
+            "class": "logging.StreamHandler",
+            "formatter": "simple",
+        },
+        "file": {
+            "level": "WARNING",
+            "class": "logging.FileHandler",
+            "filename": os.path.join(BASE_DIR, "debug.log"),
+            "formatter": "verbose",
+        },
+    },
+    "loggers": {
+        "django": {
+            "handlers": ["console", "file"],
+            "level": "INFO",
+            "propagate": True,
+        },
+    },
+}

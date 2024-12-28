@@ -11,7 +11,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from backend.settings import EMAIL_HOST_USER
+from backend.django_settings import EMAIL_HOST_USER
 from core.models import User, UserRole
 
 from .serializers import UserSerializer

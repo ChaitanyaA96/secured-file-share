@@ -71,6 +71,7 @@ export const verifyMFA = (otp) => async (dispatch, getState) => {
     const res = await api.post('auth/login/otp/', body)
 
     dispatch({ type: VERIFY_MFA_SUCCESS, payload: res.data })
+    return {success: true}
   } catch (err) {
     dispatch({ type: LOGIN_FAIL })
     throw err
