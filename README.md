@@ -89,7 +89,7 @@ npm start
 #### a. Build and Start Containers
 Run the application using Docker Compose:
 ```bash
-
+docker-compose -f docker-compose.dev.yaml up --build
 ```
 
 Run tests:
@@ -105,7 +105,7 @@ Run tests:
 #### Prod server
 Run the application using Docker Compose:
 ```bash
-    docker-compose build --no-cache --build-arg ENVIRONMENT=prod  && docker-compose up
+docker-compose build --no-cache --build-arg ENVIRONMENT=prod  && docker-compose up
 ```
 
 #### Access the Application

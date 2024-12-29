@@ -1,0 +1,43 @@
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.backend
+      args:
+        - ENVIRONMENT=dev
+    image: secure-file-share-backend
+    container_name: backend
+    volumes:
+      - ./backend:/app  # Sync local code
+      - ./backend/static:/app/static
+      - ./backend/media:/app/media
+    environment:
+      - ENVIRONMENT=dev
+      - DJANGO_SETTINGS_MODULE=backend.django_settings.dev
+      - DJANGO_ENV=dev
+    ports:
+      - "8000:8000"
+    command: python manage.py runserver 0.0.0.0:8000  # Ensure auto-reload
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.frontend
+      args:
+        - ENVIRONMENT=dev
+    image: secure-file-share-frontend
+    container_name: frontend
+    volumes:
+      - ./frontend:/app  # Sync local code
+      - /app/node_modules  # Prevent overwriting node_modules
+    environment:
+      - ENVIRONMENT=dev
+      - VITE_API_URL=http://localhost:8000/api
+    ports:
+      - "5173:5173"
+    command: npm run dev  # Run the dev server with hot reload
+
+networks:
+  default:
+    name: secure-file-share

@@ -10,6 +10,8 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.views import TokenRefreshView
+from rest_framework_simplejwt.exceptions import InvalidToken
 
 from backend.django_settings import EMAIL_HOST_USER
 from core.models import User, UserRole
@@ -113,19 +115,29 @@ class LogoutView(APIView):
 
     def post(self, request):
         try:
-            refresh_token = request.data.get("refresh")
+            refresh_token = request.COOKIES.get("refresh")
+            print(refresh_token)
             if not refresh_token:
                 return Response(
                     {"error": "Refresh token is required"},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
+            
+            if request.user.is_anonymous:
+                return Response(
+                    {"message": "No user is authenticated."},
+                    status=status.HTTP_401_UNAUTHORIZED,
+                )
 
             # Blacklist the token
             token = RefreshToken(refresh_token)
             token.blacklist()
-            return Response(
-                {"message": "Logged out successfully"}, status=status.HTTP_200_OK
-            )
+
+            response = Response({"message": "Logged out successfully"}, status=status.HTTP_200_OK)
+            response.delete_cookie("access")
+            response.delete_cookie("refresh")
+
+            return response
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -256,6 +268,8 @@ class LoginStepTwoView(APIView):
 
         # Check if session exists and retrieve email
         email = request.session.get("email")
+
+        print("step 2 session : ", request.session)
         if not email:
             return Response(
                 {"error": "Session expired or invalid. Please login again."},
@@ -290,15 +304,24 @@ class LoginStepTwoView(APIView):
         # Clear session data after successful login
         request.session.flush()
 
-        return Response(
-            {
-                "refresh": str(refresh),
-                "access": str(refresh.access_token),
-                "message": "Login successful",
-                "role": user.role,
-            },
-            status=status.HTTP_200_OK,
+        response = Response({"message": "Login successful", "role": user.role}, status=status.HTTP_200_OK,)
+
+        response.set_cookie(
+            key="access",
+            value=str(refresh.access_token),
+            httponly=True,
+            secure=True,
+            samesite="Lax",
         )
+        response.set_cookie(
+            key="refresh",
+            value=str(refresh),
+            httponly=True,
+            secure=True,
+            samesite="Lax",
+        )
+
+        return response
 
 
 class DebugSessionView(APIView):
@@ -318,3 +341,35 @@ class DebugSessionView(APIView):
                 "session_data": session_data,
             }
         )
+
+class CookieTokenRefreshView(TokenRefreshView):
+    def post(self, request, *args, **kwargs):
+        # Retrieve refresh token from cookies
+        refresh_token = request.COOKIES.get("refresh")
+        if not refresh_token:
+            return Response(
+                {"error": "Refresh token is missing or invalid."},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
+        # Update the request data to include the refresh token
+        request.data["refresh"] = refresh_token
+        try:
+            # Use the parent class logic to refresh tokens
+            response = super().post(request, *args, **kwargs)
+            access_token = response.data.get("access")
+
+            # Create a new response with updated access token in cookies
+            new_response = Response({"message": "Token refreshed successfully"})
+            new_response.set_cookie(
+                key="access",
+                value=access_token,
+                httponly=True,
+                secure=True,
+                samesite="Lax",
+            )
+            return new_response
+        except InvalidToken:
+            return Response(
+                {"error": "Invalid refresh token"}, status=status.HTTP_401_UNAUTHORIZED
+            )

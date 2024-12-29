@@ -13,7 +13,7 @@ export default defineConfig(({ mode }) => {
     server: {
       proxy: {
         '/api': {
-          target: 'https://backend:8000', // Use HTTP for the backend
+          target: isDev ? 'http://backend:8000':'https://backend:8000', // Use HTTP for the backend
           changeOrigin: true,
           secure: false, // Do not enforce SSL validation
         },
