@@ -166,15 +166,10 @@ export const accessSharedFilePublic =
 
 // Helper function to set up config with token
 const fileTokenConfig = (getState) => {
-  const token = getState().auth.access
   const config = {
     headers: {
       'Content-Type': 'application/json',
     },
-  }
-
-  if (token) {
-    config.headers['Authorization'] = `Token ${token}`
   }
 
   return config

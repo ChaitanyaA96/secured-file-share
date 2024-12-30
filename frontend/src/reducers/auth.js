@@ -15,8 +15,6 @@ import {
 
 const initialState = {
   // token stored in local storage
-  access: localStorage.getItem('access') || null,
-  refresh: localStorage.getItem('refresh') || null,
   isAuthenticated: !!localStorage.getItem('access') || false,
   isMfaRequired: false,
   user: null,
@@ -39,12 +37,8 @@ export default function (state = initialState, action) {
       }
 
     case VERIFY_MFA_SUCCESS:
-      localStorage.setItem('access', action.payload.access)
-      localStorage.setItem('refresh', action.payload.refresh)
       return {
         ...state,
-        access: action.payload.access,
-        refresh: action.payload.refresh,
         isAuthenticated: true,
         isMfaRequired: false,
         user: action.payload.user || state.user,
@@ -75,23 +69,14 @@ export default function (state = initialState, action) {
         errorMessage: action.payload,
       }
     case LOGOUT_SUCCESS:
-      localStorage.removeItem('access')
-      localStorage.removeItem('refresh')
       return {
         ...state,
-        access: null,
-        refresh: null,
         isAuthenticated: false,
         isMfaRequired: false,
         user: null,
         errorMessage: null,
       }
     case REFRESH_SUCCESS:
-      return {
-        ...state,
-        access: action.payload.access,
-        refresh: action.payload.refresh,
-      }
     case USER_DELETE:
     default:
       return state

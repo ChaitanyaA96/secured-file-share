@@ -81,14 +81,8 @@ export const verifyMFA = (otp) => async (dispatch, getState) => {
 // LOGOUT USER
 export const logout = () => async (dispatch, getState) => {
   try {
-    const refreshToken = getState().auth.refresh
-    if (!refreshToken) {
-      throw new Error('Refresh token not found') // Handle missing refresh token
-    }
-
     const res = await api.post(
       'auth/logout/',
-      { refresh: refreshToken },
       tokenConfig(getState),
     )
     dispatch({ type: LOGOUT_SUCCESS })
@@ -144,10 +138,6 @@ export const tokenConfig = (getState) => {
     headers: {
       'Content-Type': 'application/json',
     },
-  }
-
-  if (access) {
-    config.headers['Authorization'] = `Bearer ${access}`
   }
 
   return config

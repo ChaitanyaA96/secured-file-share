@@ -116,7 +116,6 @@ class LogoutView(APIView):
     def post(self, request):
         try:
             refresh_token = request.COOKIES.get("refresh")
-            print(refresh_token)
             if not refresh_token:
                 return Response(
                     {"error": "Refresh token is required"},
@@ -269,7 +268,6 @@ class LoginStepTwoView(APIView):
         # Check if session exists and retrieve email
         email = request.session.get("email")
 
-        print("step 2 session : ", request.session)
         if not email:
             return Response(
                 {"error": "Session expired or invalid. Please login again."},
