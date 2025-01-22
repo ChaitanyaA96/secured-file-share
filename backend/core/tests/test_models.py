@@ -1,10 +1,13 @@
 # test_models.py
 import os
+import uuid
 
 from django.test import TestCase
 from django.utils import timezone
+from django.conf import settings
+from django.core.files.uploadedfile import SimpleUploadedFile
 
-from core.models import File, FileShare, User
+from core.models import File, FileShare, User, file_upload_path
 
 
 class UserModelTestCase(TestCase):
@@ -38,17 +41,22 @@ class UserModelTestCase(TestCase):
 class FileModelTestCase(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(
-            email="testuser@example.com", password="password"
+            email='testuser@example.com',
+            password='testpassword'
         )
+        # Create a file instance
         self.file = File.objects.create(
-            name="testfile.txt",
+            name='test_file.txt',
             owner=self.user,
-            file="./testfile.txt",
-            encrypted_key=os.urandom(32),
+            file=SimpleUploadedFile(
+                name='test_file.txt',
+                content=b'This is a test file content.',
+                content_type='text/plain'
+            ),
         )
 
     def test_file_creation(self):
-        self.assertEqual(self.file.name, "testfile.txt")
+        self.assertEqual(self.file.name, "test_file.txt")
         self.assertEqual(self.file.owner, self.user)
 
     def test_file_encryption(self):

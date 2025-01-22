@@ -41,6 +41,9 @@ ENV PYTHONUNBUFFERED=1
 # Collect static files
 RUN python manage.py collectstatic --noinput
 
+# Run migrations
+RUN python manage.py migrate --noinput
+
 # Expose the backend port
 EXPOSE 8000
 

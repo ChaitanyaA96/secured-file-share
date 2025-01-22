@@ -25,6 +25,7 @@ class AdminTests(APITestCase):
         # Authenticate users
         self.tokens_admin = self.authenticate_user(self.admin_user)
         self.tokens_user1 = self.authenticate_user(self.user1)
+        self.tokens_user2 = self.authenticate_user(self.user2)
 
         # Create a temporary file for testing
         self.temp_file1 = SimpleUploadedFile(
@@ -86,30 +87,30 @@ class AdminTests(APITestCase):
         mfa_login_step2_response = self.client.post(reverse("otp"), {"otp": otp})
         self.assertEqual(mfa_login_step2_response.status_code, status.HTTP_200_OK)
 
-        # Extract access and refresh tokens
-        refresh_token = mfa_login_step2_response.data.get("refresh")
-        access_token = mfa_login_step2_response.data.get("access")
-        self.assertIsNotNone(refresh_token, "Refresh token should not be None")
+        self.client.cookies['access'] = mfa_login_step2_response.cookies.get("access").value
+        self.client.cookies['refresh'] = mfa_login_step2_response.cookies.get("refresh").value
+
+        # Ensure tokens are set
+        self.assertIsNotNone(self.client.cookies.get("access"), "Access token should not be None")
+        self.assertIsNotNone(self.client.cookies.get("refresh"), "Refresh token should not be None")
 
         return {
-            "access": access_token,
-            "refresh": refresh_token,
+            "access": mfa_login_step2_response.cookies.get("access").value,
+            "refresh": mfa_login_step2_response.cookies.get("refresh").value,
         }
 
     # 1. UserListView
     def test_get_user_list(self):
         """Test retrieving the list of users."""
-        self.client.credentials(
-            HTTP_AUTHORIZATION=f"Bearer {self.tokens_admin['access']}"
-        )
+        self.client.cookies['access'] = self.tokens_admin['access']
+        self.client.cookies['refresh'] = self.tokens_admin['refresh']
         response = self.client.get(reverse("user-list"))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_create_user(self):
         """Test creating a new user."""
-        self.client.credentials(
-            HTTP_AUTHORIZATION=f"Bearer {self.tokens_admin['access']}"
-        )
+        self.client.cookies['access'] = self.tokens_admin['access']
+        self.client.cookies['refresh'] = self.tokens_admin['refresh']
         data = {
             "email": "testuser@example.com",
             "first_name": "Test",
@@ -124,9 +125,8 @@ class AdminTests(APITestCase):
     # 2. UserDetailView
     def test_get_user_detail(self):
         """Test retrieving details of a specific user."""
-        self.client.credentials(
-            HTTP_AUTHORIZATION=f"Bearer {self.tokens_admin['access']}"
-        )
+        self.client.cookies['access'] = self.tokens_admin['access']
+        self.client.cookies['refresh'] = self.tokens_admin['refresh']
         user_id = self.user1.id
         response = self.client.get(reverse("user-detail", args=[user_id]))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -134,9 +134,8 @@ class AdminTests(APITestCase):
 
     def test_update_user_detail(self):
         """Test updating details of a specific user."""
-        self.client.credentials(
-            HTTP_AUTHORIZATION=f"Bearer {self.tokens_admin['access']}"
-        )
+        self.client.cookies['access'] = self.tokens_admin['access']
+        self.client.cookies['refresh'] = self.tokens_admin['refresh']
         user_id = self.user1.id
         data = {"first_name": "UpdatedName"}
         response = self.client.patch(reverse("user-detail", args=[user_id]), data)
@@ -145,9 +144,8 @@ class AdminTests(APITestCase):
 
     def test_delete_user(self):
         """Test deleting a specific user."""
-        self.client.credentials(
-            HTTP_AUTHORIZATION=f"Bearer {self.tokens_admin['access']}"
-        )
+        self.client.cookies['access'] = self.tokens_admin['access']
+        self.client.cookies['refresh'] = self.tokens_admin['refresh']
         user_id = self.user1.id
         response = self.client.delete(reverse("user-detail", args=[user_id]))
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
@@ -155,17 +153,15 @@ class AdminTests(APITestCase):
     # 3. FileListView
     def test_get_file_list(self):
         """Test retrieving the list of files."""
-        self.client.credentials(
-            HTTP_AUTHORIZATION=f"Bearer {self.tokens_admin['access']}"
-        )
+        self.client.cookies['access'] = self.tokens_admin['access']
+        self.client.cookies['refresh'] = self.tokens_admin['refresh']
         response = self.client.get(reverse("file-list"))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_create_file(self):
         """Test creating a new file."""
-        self.client.credentials(
-            HTTP_AUTHORIZATION=f"Bearer {self.tokens_admin['access']}"
-        )
+        self.client.cookies['access'] = self.tokens_admin['access']
+        self.client.cookies['refresh'] = self.tokens_admin['refresh']
         temp_file = SimpleUploadedFile(
             "testfile1.txt", b"Test file content", content_type="text/plain"
         )
@@ -182,9 +178,8 @@ class AdminTests(APITestCase):
     # 4. FileDetailView
     def test_get_file_detail(self):
         """Test retrieving details of a specific file."""
-        self.client.credentials(
-            HTTP_AUTHORIZATION=f"Bearer {self.tokens_admin['access']}"
-        )
+        self.client.cookies['access'] = self.tokens_admin['access']
+        self.client.cookies['refresh'] = self.tokens_admin['refresh']
         file_id = self.file1.id
         response = self.client.get(reverse("file-detail", args=[file_id]))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -192,9 +187,8 @@ class AdminTests(APITestCase):
 
     def test_update_file_detail(self):
         """Test updating details of a specific file."""
-        self.client.credentials(
-            HTTP_AUTHORIZATION=f"Bearer {self.tokens_admin['access']}"
-        )
+        self.client.cookies['access'] = self.tokens_admin['access']
+        self.client.cookies['refresh'] = self.tokens_admin['refresh']
         file_id = self.file1.id
         data = {"description": "Updated Description"}
         response = self.client.patch(reverse("file-detail", args=[file_id]), data)
@@ -203,9 +197,8 @@ class AdminTests(APITestCase):
 
     def test_delete_file(self):
         """Test deleting a specific file."""
-        self.client.credentials(
-            HTTP_AUTHORIZATION=f"Bearer {self.tokens_admin['access']}"
-        )
+        self.client.cookies['access'] = self.tokens_admin['access']
+        self.client.cookies['refresh'] = self.tokens_admin['refresh']
         file_id = self.file1.id
         response = self.client.delete(reverse("file-detail", args=[file_id]))
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
@@ -213,9 +206,8 @@ class AdminTests(APITestCase):
     # 5. MakeSuperuserView
     def test_make_user_superuser(self):
         """Test making a user a superuser."""
-        self.client.credentials(
-            HTTP_AUTHORIZATION=f"Bearer {self.tokens_admin['access']}"
-        )
+        self.client.cookies['access'] = self.tokens_admin['access']
+        self.client.cookies['refresh'] = self.tokens_admin['refresh']
         user_id = self.user1.id
         data = {"is_superuser": True}
         response = self.client.patch(reverse("make-superuser", args=[user_id]), data)
@@ -224,9 +216,8 @@ class AdminTests(APITestCase):
 
     def test_make_user_superuser_no_permission(self):
         """Test making a user a superuser without required permission."""
-        self.client.credentials(
-            HTTP_AUTHORIZATION=f"Bearer {self.tokens_user1['access']}"
-        )
+        self.client.cookies['access'] = self.tokens_user1['access']
+        self.client.cookies['refresh'] = self.tokens_user1['refresh']
         user_id = self.user2.id
         data = {"is_superuser": True}
         response = self.client.patch(reverse("make-superuser", args=[user_id]), data)

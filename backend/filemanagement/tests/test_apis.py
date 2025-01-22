@@ -33,9 +33,7 @@ class FileManagementTests(APITestCase):
             "testfile2.txt", b"Test file content", content_type="text/plain"
         )
 
-        self.client.credentials(
-            HTTP_AUTHORIZATION=f"Bearer {self.tokens_user1['access']}"
-        )
+        self.client.cookies['access'] = self.tokens_user1['access']
         upload_response1 = self.client.post(
             reverse("file-upload"),
             {"file": SimpleUploadedFile("testfile.txt", b"Test file content")},
@@ -43,9 +41,7 @@ class FileManagementTests(APITestCase):
         )
         self.assertEqual(upload_response1.status_code, status.HTTP_201_CREATED)
 
-        self.client.credentials(
-            HTTP_AUTHORIZATION=f"Bearer {self.tokens_user2['access']}"
-        )
+        self.client.cookies['access'] = self.tokens_user2['access']
         upload_response2 = self.client.post(
             reverse("file-upload"),
             {"file": SimpleUploadedFile("testfile.txt", b"Test file content")},
@@ -100,8 +96,9 @@ class FileManagementTests(APITestCase):
         self.assertEqual(mfa_login_step2_response.status_code, status.HTTP_200_OK)
 
         # Extract access and refresh token from the final login response
-        refresh_token = mfa_login_step2_response.data.get("refresh")
-        access_token = mfa_login_step2_response.data.get("access")
+        access_token = mfa_login_step2_response.cookies.get('access').value
+        refresh_token = mfa_login_step2_response.cookies.get('refresh').value
+
         self.assertIsNotNone(refresh_token, "Refresh token should not be None")
 
         return {
@@ -111,9 +108,7 @@ class FileManagementTests(APITestCase):
 
     def test_access_shared_file_authenticated_success(self):
         """Test successful access to a shared file by an authenticated user."""
-        self.client.credentials(
-            HTTP_AUTHORIZATION=f"Bearer {self.tokens_user1['access']}"
-        )
+        self.client.cookies['access'] = self.tokens_user1['access']
         file = File.objects.create(
             owner=self.user1, file=self.temp_file1, name="testfile1.txt"
         )
@@ -124,9 +119,7 @@ class FileManagementTests(APITestCase):
             shared_with=self.user2.email,
             share_type="view",
         )
-        self.client.credentials(
-            HTTP_AUTHORIZATION=f"Bearer {self.tokens_user2['access']}"
-        )
+        self.client.cookies['access'] = self.tokens_user2['access']
         response = self.client.get(
             reverse(
                 "access_shared_file_for_authenticated_users", args=[share.shared_link]
@@ -145,9 +138,7 @@ class FileManagementTests(APITestCase):
             shared_with=self.user2.email,
             share_type="view",
         )
-        self.client.credentials(
-            HTTP_AUTHORIZATION=f"Bearer {self.tokens_user1['access']}"
-        )
+        self.client.cookies['access'] = self.tokens_user1['access']
         response = self.client.get(
             reverse(
                 "access_shared_file_for_authenticated_users", args=[share.shared_link]
@@ -157,9 +148,7 @@ class FileManagementTests(APITestCase):
 
     def test_access_shared_file_public_success(self):
         """Test successful access to a publicly shared file."""
-        self.client.credentials(
-            HTTP_AUTHORIZATION=f"Bearer {self.tokens_user1['access']}"
-        )
+        self.client.cookies['access'] = self.tokens_user1['access']
         file = File.objects.create(
             owner=self.user1, file=self.temp_file1, name="testfile1.txt"
         )
@@ -171,19 +160,20 @@ class FileManagementTests(APITestCase):
             public=True,
             passphrase="securepass",
         )
+
+        share.shared_link = str(uuid.uuid4())
+        share.save()
         response = self.client.get(
             reverse(
-                "access_shared_file_for_public_users",
-                args=[share.shared_link, "securepass"],
+            "access_shared_file_for_public_users",
+            args=[share.shared_link, "securepass"],
             )
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_access_shared_file_public_invalid_passphrase(self):
         """Test public access denied due to invalid passphrase."""
-        self.client.credentials(
-            HTTP_AUTHORIZATION=f"Bearer {self.tokens_user1['access']}"
-        )
+        self.client.cookies['access'] = self.tokens_user1['access']
         file = File.objects.create(
             owner=self.user1, file=self.temp_file1, name="testfile1.txt"
         )
@@ -204,9 +194,7 @@ class FileManagementTests(APITestCase):
 
     def test_generate_public_link_success(self):
         """Test generating a public link for a file."""
-        self.client.credentials(
-            HTTP_AUTHORIZATION=f"Bearer {self.tokens_user1['access']}"
-        )
+        self.client.cookies['access'] = self.tokens_user1['access']
         file = File.objects.create(
             owner=self.user1, file=self.temp_file1, name="testfile1.txt"
         )
@@ -217,18 +205,14 @@ class FileManagementTests(APITestCase):
 
     def test_generate_public_link_invalid_file(self):
         """Test public link generation fails for an invalid file."""
-        self.client.credentials(
-            HTTP_AUTHORIZATION=f"Bearer {self.tokens_user1['access']}"
-        )
+        self.client.cookies['access'] = self.tokens_user1['access']
         data = {"file_id": str(uuid.uuid4()), "share_type": "view", "expires_in": 24}
         response = self.client.post(reverse("public_share_file"), data)
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_get_shared_files_list_success(self):
         """Test retrieving a list of files shared with the authenticated user."""
-        self.client.credentials(
-            HTTP_AUTHORIZATION=f"Bearer {self.tokens_user1['access']}"
-        )
+        self.client.cookies['access'] = self.tokens_user1['access']
         file = File.objects.create(
             owner=self.user1, file=self.temp_file1, name="testfile1.txt"
         )
@@ -238,18 +222,14 @@ class FileManagementTests(APITestCase):
             shared_with=self.user2.email,
             share_type="view",
         )
-        self.client.credentials(
-            HTTP_AUTHORIZATION=f"Bearer {self.tokens_user2['access']}"
-        )
+        self.client.cookies['access'] = self.tokens_user2['access']
         response = self.client.get(reverse("shared_files_list"))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 1)
 
     def test_send_email_success(self):
         """Test sending an email for file sharing."""
-        self.client.credentials(
-            HTTP_AUTHORIZATION=f"Bearer {self.tokens_user1['access']}"
-        )
+        self.client.cookies['access'] = self.tokens_user1['access']
         data = {
             "to": [self.user2.email],
             "subject": "File Sharing Notification",
@@ -264,9 +244,7 @@ class FileManagementTests(APITestCase):
 
     def test_send_email_missing_fields(self):
         """Test email sending fails with missing required fields."""
-        self.client.credentials(
-            HTTP_AUTHORIZATION=f"Bearer {self.tokens_user1['access']}"
-        )
+        self.client.cookies['access'] = self.tokens_user1['access']
 
         # Missing the 'message' field to trigger the validation error
         data = {
@@ -288,17 +266,13 @@ class FileManagementTests(APITestCase):
 
     def test_file_download_not_found(self):
         """Test downloading a file that does not exist."""
-        self.client.credentials(
-            HTTP_AUTHORIZATION=f"Bearer {self.tokens_user1['access']}"
-        )
+        self.client.cookies['access'] = self.tokens_user1['access']
         response = self.client.get(reverse("file-download", args=[str(uuid.uuid4())]))
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_file_view_unauthorized(self):
         """Test viewing a file not owned by the user."""
-        self.client.credentials(
-            HTTP_AUTHORIZATION=f"Bearer {self.tokens_user2['access']}"
-        )
+        self.client.cookies['access'] = self.tokens_user2['access']
         file = File.objects.create(
             owner=self.user1, file=self.temp_file1, name="testfile1.txt"
         )
@@ -307,9 +281,7 @@ class FileManagementTests(APITestCase):
 
     def test_retrieve_user_files(self):
         """Test retrieving a list of files owned by the user."""
-        self.client.credentials(
-            HTTP_AUTHORIZATION=f"Bearer {self.tokens_user1['access']}"
-        )
+        self.client.cookies['access'] = self.tokens_user1['access']
         File.objects.create(
             owner=self.user1, file=self.temp_file1, name="testfile1.txt"
         )
@@ -319,9 +291,7 @@ class FileManagementTests(APITestCase):
 
     def test_share_file_invalid_type(self):
         """Test sharing a file with an invalid share type."""
-        self.client.credentials(
-            HTTP_AUTHORIZATION=f"Bearer {self.tokens_user1['access']}"
-        )
+        self.client.cookies['access'] = self.tokens_user1['access']
         file = File.objects.create(
             owner=self.user1, file=self.temp_file1, name="testfile1.txt"
         )
@@ -331,27 +301,21 @@ class FileManagementTests(APITestCase):
 
     def test_public_share_file_not_found(self):
         """Test sharing a nonexistent file publicly."""
-        self.client.credentials(
-            HTTP_AUTHORIZATION=f"Bearer {self.tokens_user1['access']}"
-        )
+        self.client.cookies['access'] = self.tokens_user1['access']
         data = {"file_id": str(uuid.uuid4()), "share_type": "view", "expires_in": 24}
         response = self.client.post(reverse("public_share_file"), data)
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_shared_files_list_empty(self):
         """Test retrieving an empty list of shared files."""
-        self.client.credentials(
-            HTTP_AUTHORIZATION=f"Bearer {self.tokens_user2['access']}"
-        )
+        self.client.cookies['access'] = self.tokens_user2['access']
         response = self.client.get(reverse("shared_files_list"))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 0)
 
     def test_get_public_share_details_non_public(self):
         """Test retrieving public share details for a non-public file."""
-        self.client.credentials(
-            HTTP_AUTHORIZATION=f"Bearer {self.tokens_user1['access']}"
-        )
+        self.client.cookies['access'] = self.tokens_user1['access']
         file = File.objects.create(
             owner=self.user1, file=self.temp_file1, name="testfile1.txt"
         )
@@ -363,9 +327,7 @@ class FileManagementTests(APITestCase):
 
     def test_access_shared_file_invalid_type(self):
         """Test accessing a shared file with an invalid share type."""
-        self.client.credentials(
-            HTTP_AUTHORIZATION=f"Bearer {self.tokens_user2['access']}"
-        )
+        self.client.cookies['access'] = self.tokens_user2['access']
         file = File.objects.create(
             owner=self.user1, file=self.temp_file1, name="testfile1.txt"
         )

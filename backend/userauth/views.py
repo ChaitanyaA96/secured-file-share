@@ -119,7 +119,7 @@ class LogoutView(APIView):
             if not refresh_token:
                 return Response(
                     {"error": "Refresh token is required"},
-                    status=status.HTTP_400_BAD_REQUEST,
+                    status=status.HTTP_401_UNAUTHORIZED,
                 )
             
             if request.user.is_anonymous:
@@ -145,6 +145,8 @@ class LoadUserDataView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
+        if not request.user.is_authenticated:
+            return Response({"error": "Unauthenticated"}, status=status.HTTP_401_UNAUTHORIZED)
         user = request.user
         user_data = {
             "email": user.email,
